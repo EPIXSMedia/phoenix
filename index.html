@@ -836,6 +836,34 @@
         font-size: 11px;
         color: var(--muted);
       }
+      .sound-pill.music {
+        grid-column: 1 / -1;
+        background: rgba(200, 150, 255, 0.08);
+      }
+      .sound-pill.music.active {
+        background: rgba(200, 150, 255, 0.2);
+        border-color: rgba(200, 150, 255, 0.45);
+        box-shadow: 0 0 14px rgba(180, 140, 255, 0.28);
+      }
+      .toggle {
+        appearance: none;
+        border: 1px solid var(--glass-brd);
+        background: rgba(255, 150, 80, 0.06);
+        color: var(--muted);
+        font: inherit;
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 6px 16px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .toggle[aria-pressed="true"] {
+        background: rgba(120, 230, 170, 0.18);
+        border-color: rgba(120, 230, 170, 0.5);
+        color: #d9ffe9;
+      }
 
       .idle .dock,
       .idle .brand,
@@ -867,6 +895,74 @@
         .brand h1 {
           font-size: 15px;
           letter-spacing: 0.4em;
+        }
+      }
+
+      /* ---------- Mobile / touch: keep every control reachable ---------- */
+      @media (max-width: 760px) {
+        .dock {
+          flex-wrap: nowrap;
+          justify-content: flex-start;
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          gap: 4px;
+          padding: 8px 10px;
+          max-width: calc(100vw - 16px);
+          left: 8px;
+          right: 8px;
+          transform: none;
+          border-radius: 18px;
+          justify-content: safe center;
+        }
+        .dock::-webkit-scrollbar {
+          display: none;
+        }
+        .dock .btn {
+          font-size: 12px;
+          padding: 8px 10px;
+          flex: 0 0 auto;
+        }
+        .dock .btn svg {
+          width: 15px;
+          height: 15px;
+        }
+        .dock .sep {
+          display: none;
+        }
+        .timebar {
+          left: 8px;
+          right: 8px;
+          transform: translateY(14px);
+          max-width: calc(100vw - 16px);
+          justify-content: flex-start;
+          overflow-x: auto;
+        }
+        .timebar.open {
+          transform: translateY(0);
+        }
+        #scrub {
+          width: 38vw;
+        }
+        #verse {
+          font-size: 15px;
+          padding: 0 18px;
+        }
+        .hint {
+          font-size: 11px;
+          padding: 0 16px;
+          line-height: 1.6;
+        }
+      }
+
+      /* ---------- Respect the OS "reduce motion" preference ---------- */
+      @media (prefers-reduced-motion: reduce) {
+        .aura {
+          animation: none;
+        }
+        .orb::after {
+          animation: none;
         }
       }
     </style>
@@ -1112,10 +1208,18 @@
         <div class="sound-pill" data-sound="chimes">
           Sparks <span class="lvl">off</span>
         </div>
+        <div class="sound-pill music" data-sound="music">
+          ♪ Living Music <span class="lvl">off</span>
+        </div>
       </div>
       <div class="row">
         <label>Master volume</label
         ><input type="range" id="masterVol" min="0" max="100" value="55" />
+      </div>
+      <h2>Comfort</h2>
+      <div class="row">
+        <label>Reduce motion</label
+        ><button class="toggle" id="calmBtn" aria-pressed="false">off</button>
       </div>
       <h2>Breathing</h2>
       <div class="row">
@@ -1511,6 +1615,9 @@
           scrub: false, // dragging the life scrubber
           fourD: 0, // 0..1 block-universe (all-of-time-at-once) view
           fourDOn: false,
+          calm: false, // reduced-motion / gentle mode
+          cm: 1, // calm multiplier applied to motion-heavy effects
+          musicOn: false,
         };
 
         /* ---------- Canvas + offscreen accumulation + bloom ---------- */
@@ -1770,10 +1877,11 @@
             );
             gl.uniform2f(uni.uCam, state.cam.x / H, -state.cam.y / H); // normalized parallax
             gl.uniform1f(uni.uDay, state.day);
-            gl.uniform1f(uni.uShatter, state.shatter);
+            // calm mode tames the bright flashes (shatter/warp) for reduced-motion
+            gl.uniform1f(uni.uShatter, state.shatter * (state.calm ? 0.4 : 1));
             gl.uniform1f(uni.uForm, kf(FORM, state.life));
             gl.uniform1f(uni.uRain, state.rain);
-            gl.uniform1f(uni.uWarp, state.warp);
+            gl.uniform1f(uni.uWarp, state.warp * (state.calm ? 0.5 : 1));
             gl.uniform1f(uni.uTimeDir, state.timeDir);
             gl.uniform1f(uni.uBlock, state.fourD);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -1990,7 +2098,7 @@
           );
           const form = kf(FORM, state.life),
             burst = kf(BURST, state.life);
-          const cur = 0.55 * state.motion;
+          const cur = 0.55 * state.motion * state.cm;
           const flowS = 0.0016,
             flowT = state.t * 0.05 * state.motion;
           const wingR = Math.min(W, H) * 0.3;
@@ -2920,9 +3028,15 @@
             state.fourDOn ? 1 : 0,
             clamp(0.05 * dt, 0, 1),
           );
+          // reduced-motion / calm mode gentles all the motion-heavy effects
+          state.cm = lerp(
+            state.cm,
+            state.calm ? 0.5 : 1,
+            clamp(0.06 * dt, 0, 1),
+          );
 
-          // advance the eternal cycle (can run backward)
-          state.lifeT += 0.016 * dt * ts;
+          // advance the eternal cycle (can run backward; slower when calm)
+          state.lifeT += 0.016 * dt * ts * (state.calm ? 0.6 : 1);
           if (state.lifeT < 0) state.lifeT += state.cycle * 1000; // keep positive for modulo
           state.life = (state.lifeT / state.cycle) % 1;
           state.heat = kf(HEAT, state.life);
@@ -2969,15 +3083,15 @@
 
           // wing-flap — slow at rest, faster as the phoenix rises
           const prevFlapSin = Math.sin(state.flap);
-          state.flap += 0.016 * dt * (1.4 + form * 2.2);
+          state.flap += 0.016 * dt * (1.4 + form * 2.2) * state.cm;
           const flapSin = Math.sin(state.flap);
           if (form > 0.4 && prevFlapSin > 0 && flapSin <= 0) audio.whoosh(); // top of downstroke
 
           // drifting parallax camera (gentle autonomous drift + subtle mouse lean)
           const mxN = state.mouse.x / W - 0.5,
             myN = state.mouse.y / H - 0.5;
-          const tgX = Math.sin(state.t * 0.07) * 26 - mxN * 46;
-          const tgY = Math.cos(state.t * 0.053) * 18 - myN * 30;
+          const tgX = (Math.sin(state.t * 0.07) * 26 - mxN * 46) * state.cm;
+          const tgY = (Math.cos(state.t * 0.053) * 18 - myN * 30) * state.cm;
           state.cam.x = lerp(state.cam.x, tgX, clamp(0.03 * dt, 0, 1));
           state.cam.y = lerp(state.cam.y, tgY, clamp(0.03 * dt, 0, 1));
 
@@ -3426,7 +3540,149 @@
             ocean: makeOcean,
             chimes: makeChimes,
           };
+
+          /* ---------- Living music: an algorithmic score keyed to the phoenix ---------- */
+          let musicOn = false,
+            schedTimer = null,
+            nextTime = 0,
+            mstep = 0,
+            mBus = null,
+            mLP = null;
+          const SCALE = [0, 2, 3, 5, 7, 8, 10]; // natural minor (aeolian)
+          const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+          const degMidi = (root, deg) => {
+            const oct = Math.floor(deg / 7),
+              idx = ((deg % 7) + 7) % 7;
+            return root + oct * 12 + SCALE[idx];
+          };
+          const musicRoot = () => 45 + Math.round(state.day * 4); // lower at night
+          function phaseDegree() {
+            const l = state.life;
+            if (l < 0.18) return 0; // i
+            if (l < 0.3) return 5; // VI
+            if (l < 0.44) return 2; // III
+            if (l < 0.58) return 4; // v
+            if (l < 0.7) return 6; // VII
+            if (l < 0.84) return 3; // iv
+            return 5; // VI
+          }
+          function mVoice(freq, t, dur, type, peak) {
+            const o = ctx.createOscillator();
+            o.type = type;
+            o.frequency.setValueAtTime(freq, t);
+            // time-travel bends the pitch: rewind drags it down, fast-forward lifts it
+            o.detune.setValueAtTime(
+              (state.timeScale - 1) * 110 + state.warp * Math.sin(t * 40) * 35,
+              t,
+            );
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(peak, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            o.connect(g);
+            g.connect(mBus);
+            o.start(t);
+            o.stop(t + dur + 0.05);
+          }
+          function scheduleStep(t) {
+            const heat = clamp(state.heat + state.clickHeat, 0, 1.3);
+            const root = musicRoot();
+            const deg = phaseDegree();
+            const chord = [deg, deg + 2, deg + 4];
+            // brightness opens with the fire
+            mLP.frequency.setTargetAtTime(
+              700 + heat * 2600 + state.day * 500,
+              t,
+              0.3,
+            );
+            if (mstep % 8 === 0) {
+              // bass + a soft sustained chord pad
+              mVoice(mtof(degMidi(root - 12, deg)), t, 1.8, "triangle", 0.16);
+              for (const c of chord)
+                mVoice(
+                  mtof(degMidi(root, c)),
+                  t,
+                  2.6,
+                  "sine",
+                  0.045 + state.day * 0.03,
+                );
+            }
+            if (heat > 0.12) {
+              // arpeggio — denser & louder as it blazes
+              const tone = chord[mstep % chord.length] + (mstep % 2 ? 7 : 0);
+              mVoice(
+                mtof(degMidi(root + 12, tone)),
+                t,
+                0.34,
+                "triangle",
+                0.04 + heat * 0.1,
+              );
+            }
+            if (heat > 0.7 && mstep % 2 === 0) {
+              // a sparkling lead at the peak of the blaze
+              mVoice(
+                mtof(degMidi(root + 24, chord[(mstep + 1) % 3] + 7)),
+                t,
+                0.5,
+                "sine",
+                0.05,
+              );
+            }
+            mstep++;
+          }
+          function scheduler() {
+            if (!ctx) return;
+            while (nextTime < ctx.currentTime + 0.12) {
+              scheduleStep(nextTime);
+              const ts = state.timeScale;
+              const speed = ts <= 0 ? 0.35 : clamp(ts, 0.4, 3); // drift when frozen/rewinding
+              nextTime += (0.34 / speed) * (state.calm ? 1.4 : 1);
+            }
+          }
+          function startMusic() {
+            ensure();
+            resume();
+            if (musicOn) return true;
+            mBus = ctx.createGain();
+            mBus.gain.value = 0;
+            mLP = ctx.createBiquadFilter();
+            mLP.type = "lowpass";
+            mLP.frequency.value = 1200;
+            mLP.Q.value = 0.6;
+            const dly = ctx.createDelay();
+            dly.delayTime.value = 0.38;
+            const fb = ctx.createGain();
+            fb.gain.value = 0.3;
+            const wet = ctx.createGain();
+            wet.gain.value = 0.32;
+            mBus.connect(mLP);
+            mLP.connect(master); // dry
+            mLP.connect(dly);
+            dly.connect(fb);
+            fb.connect(dly);
+            dly.connect(wet);
+            wet.connect(master); // echo for space
+            mBus.gain.linearRampToValueAtTime(0.85, ctx.currentTime + 2.5);
+            musicOn = true;
+            mstep = 0;
+            nextTime = ctx.currentTime + 0.1;
+            schedTimer = setInterval(scheduler, 30);
+            return true;
+          }
+          function stopMusic() {
+            if (!musicOn) return false;
+            musicOn = false;
+            clearInterval(schedTimer);
+            schedTimer = null;
+            if (mBus)
+              mBus.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.4);
+            return false;
+          }
+
           return {
+            music() {
+              return musicOn ? stopMusic() : startMusic();
+            },
             toggle(n) {
               ensure();
               resume();
@@ -3848,6 +4104,20 @@
         }
         $("#fourdBtn").addEventListener("click", toggleFourD);
 
+        // Reduce-motion / calm mode (auto-on if the OS asks for it)
+        function setCalm(on) {
+          state.calm = on;
+          const b = $("#calmBtn");
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+          b.textContent = on ? "on" : "off";
+        }
+        $("#calmBtn").addEventListener("click", () => setCalm(!state.calm));
+        try {
+          const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
+          if (rm.matches) setCalm(true);
+          rm.addEventListener?.("change", (e) => setCalm(e.matches));
+        } catch (e) {}
+
         function flashHint(msg) {
           const h = $("#hint");
           h.textContent = msg;
@@ -3864,14 +4134,24 @@
         );
         document.querySelectorAll(".sound-pill").forEach((p) =>
           p.addEventListener("click", () => {
-            audio.toggle(p.dataset.sound);
+            if (p.dataset.sound === "music") {
+              state.musicOn = audio.music();
+            } else {
+              audio.toggle(p.dataset.sound);
+            }
             syncSound();
-            $("#soundBtn").classList.toggle("active", audio.anyOn());
+            $("#soundBtn").classList.toggle(
+              "active",
+              audio.anyOn() || state.musicOn,
+            );
           }),
         );
         function syncSound() {
           document.querySelectorAll(".sound-pill").forEach((p) => {
-            const on = audio.isOn(p.dataset.sound);
+            const on =
+              p.dataset.sound === "music"
+                ? state.musicOn
+                : audio.isOn(p.dataset.sound);
             p.classList.toggle("active", on);
             p.querySelector(".lvl").textContent = on ? "on" : "off";
           });
@@ -3994,6 +4274,13 @@
         resize();
         requestAnimationFrame(loop);
         setTimeout(() => ($("#hint").style.opacity = 0), 12000);
+
+        // installable / offline app — register the service worker (https only)
+        if ("serviceWorker" in navigator && location.protocol === "https:") {
+          addEventListener("load", () =>
+            navigator.serviceWorker.register("sw.js").catch(() => {}),
+          );
+        }
       })();
     </script>
   </body>

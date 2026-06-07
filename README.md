@@ -40,6 +40,12 @@ cycle and layers a whole world on top of it.
 - **Time Machine** — rewind, freeze, or fast-forward the phoenix's life; a wormhole opens, the **wheel of time** turns
 - **4D** — step outside time into the _block universe_: the entire life laid out at once along a worldline of ghost-selves
 
+### Sound & comfort
+
+- **Living Music** (Settings → Ambient Mix) — a generative score that follows the phoenix: the chord moves with each phase, arpeggios brighten with the heat, the key drops at night, and the pitch bends when you travel through time.
+- **Reduce motion** (Settings → Comfort) — a calm mode that gentles all the motion and flashes; it turns on automatically if your system asks for reduced motion.
+- **Installable** — on the live site it works fully **offline** and can be added to your home screen / installed as an app.
+
 ## Keyboard
 
 | Key     | Action  | Key | Action            |
