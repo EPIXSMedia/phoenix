@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+._*
+
+# tooling / test artifacts
+.playwright-mcp/
+*.log
+node_modules/

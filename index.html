@@ -1,0 +1,3967 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0a0503" />
+    <title>Phoenix — Born · Burned · Reborn</title>
+    <meta
+      name="description"
+      content="A living phoenix of fire and ash — flowing currents, an endless cycle of birth and rebirth, stirred by your hand."
+    />
+    <!-- Installable as an offline app (works when served over http/https) -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Phoenix" />
+    <link
+      rel="manifest"
+      href='data:application/manifest+json,{"name":"Phoenix","short_name":"Phoenix","display":"fullscreen","orientation":"any","background_color":"%230a0503","theme_color":"%230a0503","start_url":"."}'
+    />
+    <style>
+      :root {
+        --ink: #ffe9d4;
+        --muted: #c79b7e;
+        --glass: rgba(40, 18, 10, 0.34);
+        --glass-brd: rgba(255, 150, 80, 0.18);
+        --accent: #ff7a1a;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        background: #070302;
+        color: var(--ink);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+        cursor: default;
+      }
+
+      #gl,
+      #scene,
+      #particles {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #gl {
+        z-index: 0;
+      }
+      #scene {
+        z-index: 1;
+      }
+      #particles {
+        z-index: 2;
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+
+      .grain {
+        position: fixed;
+        inset: 0;
+        z-index: 3;
+        pointer-events: none;
+        opacity: 0.05;
+        mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+      .vignette {
+        position: fixed;
+        inset: 0;
+        z-index: 4;
+        pointer-events: none;
+        background: radial-gradient(
+          125% 125% at 50% 58%,
+          transparent 38%,
+          rgba(0, 0, 0, 0.7) 100%
+        );
+      }
+
+      /* ---------- Ember core (breathing) ---------- */
+      #core {
+        position: fixed;
+        z-index: 5;
+        left: 50%;
+        top: 52%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .aura {
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        border-radius: 50%;
+        background: conic-gradient(
+          from 0deg,
+          rgba(255, 80, 0, 0),
+          rgba(255, 140, 20, 0.4),
+          rgba(255, 40, 0, 0),
+          rgba(255, 200, 60, 0.34),
+          rgba(255, 90, 0, 0),
+          rgba(255, 80, 0, 0)
+        );
+        filter: blur(40px);
+        animation: spin 22s linear infinite;
+        opacity: 0.85;
+        will-change: transform;
+      }
+      .aura.b {
+        width: 280px;
+        height: 280px;
+        animation: spin 15s linear infinite reverse;
+        opacity: 0.6;
+        filter: blur(28px);
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .orb {
+        position: relative;
+        width: 170px;
+        height: 170px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 40% 34%,
+          #fff7e6,
+          #ffd27a 22%,
+          #ff7a1a 48%,
+          #b81e0e 70%,
+          rgba(60, 10, 4, 0.2) 84%,
+          transparent 88%
+        );
+        box-shadow:
+          0 0 90px 18px rgba(255, 110, 20, 0.5),
+          inset 0 0 60px rgba(255, 210, 120, 0.5),
+          inset -10px -16px 50px rgba(120, 20, 6, 0.6);
+        will-change: transform, filter;
+      }
+      .orb::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 66% 74%,
+          rgba(255, 255, 235, 0.3),
+          transparent 42%
+        );
+        animation: shimmer 5s ease-in-out infinite;
+        mix-blend-mode: screen;
+      }
+      @keyframes shimmer {
+        0%,
+        100% {
+          opacity: 0.4;
+        }
+        50% {
+          opacity: 0.95;
+        }
+      }
+      .ring {
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 150, 70, 0.22);
+        width: 170px;
+        height: 170px;
+        will-change: transform, opacity;
+      }
+
+      #coreText {
+        position: fixed;
+        z-index: 5;
+        left: 50%;
+        top: 52%;
+        transform: translate(-50%, calc(-50% + 150px));
+        font-size: 13px;
+        letter-spacing: 0.34em;
+        text-transform: uppercase;
+        color: var(--muted);
+        text-align: center;
+        transition: opacity 0.7s ease;
+      }
+      #coreCount {
+        display: block;
+        font-size: 34px;
+        letter-spacing: 0.05em;
+        margin-top: 10px;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+        opacity: 0.85;
+        font-weight: 200;
+      }
+
+      /* ---------- Brand & phase ---------- */
+      .brand {
+        position: fixed;
+        z-index: 6;
+        top: 26px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        pointer-events: none;
+        transition: opacity 0.8s ease;
+      }
+      .brand h1 {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.6em;
+        text-transform: uppercase;
+        background: linear-gradient(90deg, #ffcaa0, #fff3df, #ff8a3a);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .brand p {
+        font-size: 12px;
+        color: var(--muted);
+        letter-spacing: 0.24em;
+        margin-top: 6px;
+      }
+      #phase {
+        position: fixed;
+        z-index: 6;
+        left: 0;
+        right: 0;
+        bottom: 92px;
+        text-align: center;
+        pointer-events: none;
+        font-size: 12px;
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
+        color: var(--muted);
+        opacity: 0.75;
+        transition: opacity 1s ease;
+      }
+      #verse {
+        position: fixed;
+        z-index: 6;
+        left: 0;
+        right: 0;
+        top: 30%;
+        text-align: center;
+        pointer-events: none;
+        font-size: 19px;
+        font-weight: 300;
+        letter-spacing: 0.16em;
+        font-style: italic;
+        color: rgba(255, 233, 212, 0.82);
+        text-shadow: 0 0 30px rgba(255, 130, 40, 0.5);
+        opacity: 0;
+        transition: opacity 2.4s ease;
+      }
+
+      /* ---------- Let-Go ritual ---------- */
+      #burnText {
+        position: fixed;
+        z-index: 6;
+        left: 50%;
+        top: 34%;
+        transform: translate(-50%, -50%);
+        max-width: 80vw;
+        text-align: center;
+        pointer-events: none;
+        font-size: clamp(20px, 4vw, 40px);
+        font-weight: 300;
+        letter-spacing: 0.04em;
+        line-height: 1.3;
+        opacity: 0;
+        color: #fff3df;
+      }
+      #burnText.burning {
+        animation: burnAway 3.4s ease-in forwards;
+      }
+      @keyframes burnAway {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.96);
+          text-shadow: 0 0 0 rgba(255, 140, 40, 0);
+          filter: blur(0);
+        }
+        18% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+          text-shadow: 0 0 24px rgba(255, 150, 50, 0.9);
+        }
+        55% {
+          opacity: 1;
+          color: #ff9a3c;
+          text-shadow:
+            0 0 36px rgba(255, 120, 30, 1),
+            0 -10px 50px rgba(255, 90, 0, 0.8);
+          filter: blur(0.4px);
+        }
+        100% {
+          opacity: 0;
+          color: #ff5a14;
+          transform: translate(-50%, -180px) scale(1.06);
+          text-shadow: 0 0 60px rgba(255, 80, 0, 0);
+          filter: blur(6px);
+        }
+      }
+      .ritual {
+        position: fixed;
+        inset: 0;
+        z-index: 9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 4, 2, 0.55);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s ease;
+      }
+      .ritual.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .ritual-card {
+        width: min(520px, 90vw);
+        text-align: center;
+        padding: 0 24px;
+      }
+      .ritual-q {
+        font-size: 20px;
+        font-weight: 300;
+        letter-spacing: 0.08em;
+        color: var(--ink);
+        margin-bottom: 22px;
+        text-shadow: 0 0 24px rgba(255, 130, 40, 0.4);
+      }
+      #ritualInput {
+        width: 100%;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid rgba(255, 150, 80, 0.35);
+        color: #fff3df;
+        font: inherit;
+        font-size: 22px;
+        text-align: center;
+        padding: 10px 6px 12px;
+        outline: none;
+        letter-spacing: 0.02em;
+      }
+      #ritualInput::placeholder {
+        color: rgba(199, 155, 126, 0.5);
+        font-style: italic;
+        font-size: 16px;
+      }
+      .ritual-row {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 26px;
+      }
+      .ritual-btn {
+        appearance: none;
+        border: 1px solid rgba(255, 150, 60, 0.45);
+        background: rgba(255, 130, 40, 0.16);
+        color: #ffe9d4;
+        font: inherit;
+        font-size: 14px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 11px 22px;
+        border-radius: 14px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .ritual-btn:hover {
+        background: rgba(255, 130, 40, 0.28);
+        box-shadow: 0 0 22px rgba(255, 120, 30, 0.4);
+      }
+      .ritual-btn.ghost {
+        background: transparent;
+        border-color: var(--glass-brd);
+        color: var(--muted);
+      }
+
+      /* ---------- Cinema / screensaver mode hides every control ---------- */
+      .cinema .dock,
+      .cinema .brand,
+      .cinema .hint,
+      .cinema #phase,
+      .cinema .panel {
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      .cinema {
+        cursor: none;
+      }
+      #micBtn.active {
+        background: linear-gradient(
+          90deg,
+          rgba(120, 230, 170, 0.25),
+          rgba(255, 200, 60, 0.2)
+        );
+        border-color: rgba(120, 230, 170, 0.5);
+        box-shadow: 0 0 22px rgba(120, 230, 170, 0.4);
+      }
+      #journeyBtn.active,
+      #letgoBtn.active {
+        background: linear-gradient(
+          90deg,
+          rgba(200, 150, 255, 0.22),
+          rgba(255, 200, 60, 0.2)
+        );
+        border-color: rgba(200, 150, 255, 0.5);
+        box-shadow: 0 0 22px rgba(180, 140, 255, 0.4);
+      }
+      #timeBtn.active,
+      #fourdBtn.active {
+        background: linear-gradient(
+          90deg,
+          rgba(120, 180, 255, 0.24),
+          rgba(200, 150, 255, 0.2)
+        );
+        border-color: rgba(140, 180, 255, 0.5);
+        box-shadow: 0 0 22px rgba(140, 180, 255, 0.45);
+      }
+
+      /* ---------- Time machine bar ---------- */
+      .timebar {
+        position: fixed;
+        z-index: 7;
+        left: 50%;
+        bottom: 92px;
+        transform: translateX(-50%) translateY(14px);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 9px 14px;
+        border-radius: 20px;
+        background: var(--glass);
+        backdrop-filter: blur(18px) saturate(150%);
+        -webkit-backdrop-filter: blur(18px) saturate(150%);
+        border: 1px solid rgba(140, 180, 255, 0.25);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.4s ease,
+          transform 0.4s ease;
+        max-width: calc(100vw - 24px);
+      }
+      .timebar.open {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(-50%) translateY(0);
+      }
+      .tbtn {
+        appearance: none;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--ink);
+        font-size: 15px;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .tbtn:hover {
+        background: rgba(140, 180, 255, 0.14);
+      }
+      .tbtn.active {
+        background: rgba(140, 180, 255, 0.24);
+        border-color: rgba(140, 180, 255, 0.5);
+        box-shadow: 0 0 14px rgba(140, 180, 255, 0.4);
+      }
+      #scrub {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 180px;
+        max-width: 38vw;
+        height: 4px;
+        border-radius: 4px;
+        background: rgba(140, 180, 255, 0.25);
+        outline: none;
+        cursor: pointer;
+      }
+      #scrub::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #9fc4ff;
+        box-shadow: 0 0 12px rgba(120, 180, 255, 0.8);
+        cursor: pointer;
+      }
+      #scrub::-moz-range-thumb {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #9fc4ff;
+        border: none;
+      }
+      #timeLabel {
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+        min-width: 78px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .cinema .timebar {
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
+      /* ---------- Timer ---------- */
+      #timerDisplay {
+        position: fixed;
+        z-index: 6;
+        left: 50%;
+        top: 52%;
+        transform: translate(-50%, -50%);
+        font-size: 84px;
+        font-weight: 100;
+        letter-spacing: 0.04em;
+        font-variant-numeric: tabular-nums;
+        color: rgba(255, 233, 212, 0.95);
+        text-shadow: 0 0 50px rgba(255, 120, 30, 0.6);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.6s ease;
+      }
+      #timerDisplay.show {
+        opacity: 1;
+      }
+      #timerLabel {
+        position: fixed;
+        z-index: 6;
+        left: 50%;
+        top: 52%;
+        transform: translate(-50%, calc(-50% + 72px));
+        font-size: 13px;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--muted);
+        opacity: 0;
+        transition: opacity 0.6s ease;
+      }
+      #timerLabel.show {
+        opacity: 1;
+      }
+
+      .hint {
+        position: fixed;
+        z-index: 6;
+        left: 50%;
+        bottom: 118px;
+        transform: translateX(-50%);
+        font-size: 12px;
+        color: var(--muted);
+        letter-spacing: 0.1em;
+        text-align: center;
+        transition: opacity 1s ease;
+        pointer-events: none;
+      }
+
+      /* ---------- Dock ---------- */
+      .dock {
+        position: fixed;
+        z-index: 7;
+        left: 50%;
+        bottom: 26px;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 24px;
+        background: var(--glass);
+        backdrop-filter: blur(18px) saturate(150%);
+        -webkit-backdrop-filter: blur(18px) saturate(150%);
+        border: 1px solid var(--glass-brd);
+        box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+        transition:
+          opacity 0.6s ease,
+          transform 0.6s ease;
+        max-width: calc(100vw - 24px);
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .btn {
+        appearance: none;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        border-radius: 15px;
+        padding: 9px 13px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+        transition:
+          background 0.25s,
+          border-color 0.25s,
+          color 0.25s,
+          transform 0.12s,
+          box-shadow 0.25s;
+      }
+      .btn:hover {
+        background: rgba(255, 140, 60, 0.12);
+      }
+      .btn:active {
+        transform: scale(0.95);
+      }
+      .btn.active {
+        background: rgba(255, 130, 40, 0.2);
+        border-color: rgba(255, 150, 60, 0.5);
+        color: #fff0e0;
+        box-shadow: 0 0 18px rgba(255, 130, 40, 0.3);
+      }
+      .btn svg {
+        width: 16px;
+        height: 16px;
+        flex: none;
+      }
+      .sep {
+        width: 1px;
+        height: 26px;
+        background: var(--glass-brd);
+        margin: 0 3px;
+      }
+      .icon-btn {
+        padding: 9px;
+        border-radius: 50%;
+      }
+      #rebirthBtn.active,
+      #rebirthBtn:hover {
+        background: linear-gradient(
+          90deg,
+          rgba(255, 90, 0, 0.25),
+          rgba(255, 200, 60, 0.25)
+        );
+        border-color: rgba(255, 150, 40, 0.5);
+        box-shadow: 0 0 24px rgba(255, 120, 30, 0.45);
+      }
+      #rainBtn.active {
+        background: linear-gradient(
+          90deg,
+          rgba(80, 130, 200, 0.28),
+          rgba(140, 180, 230, 0.22)
+        );
+        border-color: rgba(140, 180, 230, 0.5);
+        box-shadow: 0 0 22px rgba(110, 160, 220, 0.45);
+        color: #dceaff;
+      }
+
+      /* ---------- Settings ---------- */
+      .panel {
+        position: fixed;
+        z-index: 8;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 330px;
+        max-width: 88vw;
+        background: rgba(20, 8, 4, 0.86);
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+        border-left: 1px solid var(--glass-brd);
+        transform: translateX(100%);
+        transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        padding: 26px 24px;
+        overflow-y: auto;
+      }
+      .panel.open {
+        transform: translateX(0);
+      }
+      .panel h2 {
+        font-size: 12px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 24px 0 12px;
+      }
+      .panel h2:first-of-type {
+        margin-top: 6px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 14px 0;
+      }
+      .row label {
+        font-size: 14px;
+        color: var(--ink);
+      }
+      .row .val {
+        font-size: 12px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 130px;
+        height: 4px;
+        border-radius: 4px;
+        background: rgba(255, 150, 80, 0.2);
+        outline: none;
+        cursor: pointer;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 10px rgba(255, 120, 30, 0.7);
+        cursor: pointer;
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: none;
+        cursor: pointer;
+      }
+      select {
+        background: rgba(255, 150, 80, 0.1);
+        color: var(--ink);
+        border: 1px solid var(--glass-brd);
+        border-radius: 10px;
+        padding: 7px 10px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .closeX {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 22px;
+        line-height: 1;
+        background: none;
+        border: none;
+      }
+      .closeX:hover {
+        color: var(--ink);
+      }
+      .sound-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .sound-pill {
+        padding: 11px;
+        border-radius: 12px;
+        border: 1px solid var(--glass-brd);
+        background: rgba(255, 150, 80, 0.06);
+        font-size: 13px;
+        cursor: pointer;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: 0.2s;
+      }
+      .sound-pill.active {
+        background: rgba(255, 130, 40, 0.18);
+        border-color: rgba(255, 150, 60, 0.45);
+        box-shadow: 0 0 14px rgba(255, 120, 30, 0.22);
+      }
+      .sound-pill .lvl {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .idle .dock,
+      .idle .brand,
+      .idle .hint,
+      .idle #phase {
+        opacity: 0;
+      }
+      .idle {
+        cursor: none;
+      }
+
+      @media (max-width: 560px) {
+        .orb,
+        .ring {
+          width: 130px;
+          height: 130px;
+        }
+        .aura {
+          width: 260px;
+          height: 260px;
+        }
+        .aura.b {
+          width: 200px;
+          height: 200px;
+        }
+        #timerDisplay {
+          font-size: 58px;
+        }
+        .brand h1 {
+          font-size: 15px;
+          letter-spacing: 0.4em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+    <canvas id="scene"></canvas>
+    <canvas id="particles"></canvas>
+    <div class="grain"></div>
+    <div class="vignette"></div>
+
+    <div class="brand" id="brand">
+      <h1>Phoenix</h1>
+      <p>born · burned · reborn</p>
+    </div>
+
+    <div id="core">
+      <div class="aura"></div>
+      <div class="aura b"></div>
+      <div class="ring" id="ring1"></div>
+      <div class="ring" id="ring2"></div>
+      <div class="ring" id="ring3"></div>
+      <div class="orb" id="orb"></div>
+    </div>
+    <div id="coreText">
+      <span id="corePhase">tap breathe to begin</span
+      ><span id="coreCount"></span>
+    </div>
+
+    <div id="timerLabel">focus session</div>
+    <div id="timerDisplay">25:00</div>
+
+    <div id="phase">embers</div>
+    <div id="verse"></div>
+    <div id="burnText"></div>
+    <div class="hint" id="hint">
+      light a fire near the blaze and a second phoenix rises · let night fall to
+      see the sky-bird · double-click to shatter · call the Rain
+    </div>
+
+    <!-- The Let-Go ritual -->
+    <div class="ritual" id="ritual">
+      <div class="ritual-card">
+        <p class="ritual-q">What will you release into the fire?</p>
+        <input
+          id="ritualInput"
+          type="text"
+          maxlength="80"
+          autocomplete="off"
+          placeholder="a fear · a regret · a name · a weight you carry"
+        />
+        <div class="ritual-row">
+          <button class="ritual-btn" id="ritualBurn">Let it burn</button>
+          <button class="ritual-btn ghost" id="ritualCancel">not yet</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dock" id="dock">
+      <button class="btn" id="rebirthBtn">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <path
+            d="M12 3c1.5 3-1.5 4-1.5 6.5A1.5 1.5 0 0 0 12 11a3 3 0 0 0 3-3M12 3c-3.5 2.5-5 5.5-5 8a5 5 0 0 0 10 0c0-1.2-.4-2.3-1-3.2"
+          /></svg
+        >Rebirth
+      </button>
+      <button class="btn" id="rainBtn">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <path
+            d="M7 17a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 8.5a3.5 3.5 0 0 1 1 6.86M8 19l-1 2M12 19l-1 2M16 19l-1 2"
+          /></svg
+        >Rain
+      </button>
+      <button class="btn" id="breathBtn">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <circle cx="12" cy="12" r="8" />
+          <circle cx="12" cy="12" r="3" /></svg
+        >Breathe
+      </button>
+      <button class="btn" id="timerBtn">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <circle cx="12" cy="13" r="8" />
+          <path d="M12 9v4l2 2M9 2h6" /></svg
+        >Focus
+      </button>
+      <button class="btn" id="soundBtn">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <path d="M11 5 6 9H2v6h4l5 4V5z" />
+          <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14" /></svg
+        >Sound
+      </button>
+      <button
+        class="btn"
+        id="micBtn"
+        title="Breathe into the mic to fan the flames"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <rect x="9" y="2" width="6" height="11" rx="3" />
+          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg
+        >Breath
+      </button>
+      <button class="btn" id="letgoBtn" title="Release something into the fire">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <path
+            d="M12 21c4-2 6-5 6-9a6 6 0 0 0-12 0c0 4 2 7 6 9zM9 8c0 2 6 2 6-1"
+          /></svg
+        >Let Go
+      </button>
+      <button class="btn" id="journeyBtn" title="A hands-free guided journey">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M8 14c1.5-4 6.5-4 8-8M12 12l-1.5-1.5" /></svg
+        >Journey
+      </button>
+      <button
+        class="btn"
+        id="timeBtn"
+        title="Travel through the phoenix's time"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" /></svg
+        >Time
+      </button>
+      <button
+        class="btn"
+        id="fourdBtn"
+        title="See the whole life at once — the block universe"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <path d="M4 8l8-4 8 4-8 4-8-4zM4 8v8l8 4 8-4V8M12 12v8" /></svg
+        >4D
+      </button>
+      <div class="sep"></div>
+      <button class="btn icon-btn" id="settingsBtn">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+          />
+        </svg>
+      </button>
+      <button class="btn icon-btn" id="fsBtn">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <path
+            d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <!-- The time machine -->
+    <div class="timebar" id="timebar">
+      <button class="tbtn" data-ts="-3" title="Rewind fast">⏪</button>
+      <button class="tbtn" data-ts="-1" title="Rewind">◀</button>
+      <button class="tbtn" data-ts="0" title="Freeze time">⏸</button>
+      <button class="tbtn active" data-ts="1" title="Now">▶</button>
+      <button class="tbtn" data-ts="3" title="Fast-forward">⏩</button>
+      <input
+        type="range"
+        id="scrub"
+        min="0"
+        max="1000"
+        value="0"
+        title="Scrub through the phoenix's life"
+      />
+      <span id="timeLabel">now</span>
+    </div>
+
+    <div class="panel" id="panel">
+      <button class="closeX" id="closePanel">×</button>
+      <h2>Ambient Mix</h2>
+      <div class="sound-grid" id="soundGrid">
+        <div class="sound-pill" data-sound="pad">
+          Embers Drone <span class="lvl">off</span>
+        </div>
+        <div class="sound-pill" data-sound="rain">
+          Crackle <span class="lvl">off</span>
+        </div>
+        <div class="sound-pill" data-sound="ocean">
+          Currents <span class="lvl">off</span>
+        </div>
+        <div class="sound-pill" data-sound="chimes">
+          Sparks <span class="lvl">off</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>Master volume</label
+        ><input type="range" id="masterVol" min="0" max="100" value="55" />
+      </div>
+      <h2>Breathing</h2>
+      <div class="row">
+        <label>Pattern</label>
+        <select id="breathPattern">
+          <option value="4-4-4-4">Box · 4-4-4-4</option>
+          <option value="4-7-8-0" selected>Relax · 4-7-8</option>
+          <option value="5-0-5-0">Coherent · 5-5</option>
+          <option value="6-0-6-0">Calm · 6-6</option>
+        </select>
+      </div>
+      <h2>Focus Timer</h2>
+      <div class="row">
+        <label>Session length</label>
+        <div><span class="val" id="focusLenVal">25</span> min</div>
+      </div>
+      <div class="row">
+        <input
+          type="range"
+          id="focusLen"
+          min="5"
+          max="90"
+          step="5"
+          value="25"
+          style="width: 100%"
+        />
+      </div>
+      <h2>The Fire</h2>
+      <div class="row">
+        <label>Current speed</label
+        ><input type="range" id="motionInt" min="20" max="200" value="100" />
+      </div>
+      <div class="row">
+        <label>Ember density</label
+        ><input type="range" id="density" min="20" max="220" value="100" />
+      </div>
+      <div class="row">
+        <label>Trail length</label
+        ><input type="range" id="trail" min="2" max="22" value="10" />
+      </div>
+      <div class="row">
+        <label>Glow / bloom</label
+        ><input type="range" id="bloom" min="0" max="100" value="72" />
+      </div>
+      <div class="row">
+        <label>Rebirth cycle</label>
+        <div><span class="val" id="cycleVal">26</span> s</div>
+      </div>
+      <div class="row">
+        <input
+          type="range"
+          id="cycle"
+          min="12"
+          max="60"
+          step="2"
+          value="26"
+          style="width: 100%"
+        />
+      </div>
+      <div class="row">
+        <label>Day–night length</label>
+        <div><span class="val" id="dayVal">80</span> s</div>
+      </div>
+      <div class="row">
+        <input
+          type="range"
+          id="dayLen"
+          min="20"
+          max="240"
+          step="10"
+          value="80"
+          style="width: 100%"
+        />
+      </div>
+      <h2
+        style="
+          margin-top: 30px;
+          color: rgba(255, 200, 150, 0.22);
+          font-size: 11px;
+          letter-spacing: 0.16em;
+          line-height: 1.8;
+        "
+      >
+        Settings are remembered on this device.
+        <b style="color: var(--muted)">Space</b> breathe ·
+        <b style="color: var(--muted)">R</b> rebirth ·
+        <b style="color: var(--muted)">X</b> shatter ·
+        <b style="color: var(--muted)">N</b> rain ·
+        <b style="color: var(--muted)">L</b> let go ·
+        <b style="color: var(--muted)">J</b> journey ·
+        <b style="color: var(--muted)">M</b> breath ·
+        <b style="color: var(--muted)">C</b> cinema ·
+        <b style="color: var(--muted)">F</b> fullscreen
+      </h2>
+    </div>
+
+    <script>
+      "use strict";
+      (() => {
+        const $ = (s) => document.querySelector(s);
+        const TAU = Math.PI * 2;
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const rand = (a, b) => a + Math.random() * (b - a);
+        const easeIO = (t) =>
+          t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+        /* ---------- Simplex noise (3D) for curl-flow currents ---------- */
+        const Simplex = (() => {
+          const grad3 = [
+            [1, 1, 0],
+            [-1, 1, 0],
+            [1, -1, 0],
+            [-1, -1, 0],
+            [1, 0, 1],
+            [-1, 0, 1],
+            [1, 0, -1],
+            [-1, 0, -1],
+            [0, 1, 1],
+            [0, -1, 1],
+            [0, 1, -1],
+            [0, -1, -1],
+          ];
+          const p = new Uint8Array(256);
+          for (let i = 0; i < 256; i++) p[i] = i;
+          for (let i = 255; i > 0; i--) {
+            const j = (i * 167 + 13) % 256;
+            const t = p[i];
+            p[i] = p[j];
+            p[j] = t;
+          }
+          const perm = new Uint8Array(512),
+            pm = new Uint8Array(512);
+          for (let i = 0; i < 512; i++) {
+            perm[i] = p[i & 255];
+            pm[i] = perm[i] % 12;
+          }
+          const F3 = 1 / 3,
+            G3 = 1 / 6;
+          const dot = (g, x, y, z) => g[0] * x + g[1] * y + g[2] * z;
+          function noise(x, y, z) {
+            let n0, n1, n2, n3;
+            const s = (x + y + z) * F3;
+            const i = Math.floor(x + s),
+              j = Math.floor(y + s),
+              k = Math.floor(z + s);
+            const t = (i + j + k) * G3,
+              X0 = i - t,
+              Y0 = j - t,
+              Z0 = k - t;
+            const x0 = x - X0,
+              y0 = y - Y0,
+              z0 = z - Z0;
+            let i1, j1, k1, i2, j2, k2;
+            if (x0 >= y0) {
+              if (y0 >= z0) {
+                i1 = 1;
+                j1 = 0;
+                k1 = 0;
+                i2 = 1;
+                j2 = 1;
+                k2 = 0;
+              } else if (x0 >= z0) {
+                i1 = 1;
+                j1 = 0;
+                k1 = 0;
+                i2 = 1;
+                j2 = 0;
+                k2 = 1;
+              } else {
+                i1 = 0;
+                j1 = 0;
+                k1 = 1;
+                i2 = 1;
+                j2 = 0;
+                k2 = 1;
+              }
+            } else {
+              if (y0 < z0) {
+                i1 = 0;
+                j1 = 0;
+                k1 = 1;
+                i2 = 0;
+                j2 = 1;
+                k2 = 1;
+              } else if (x0 < z0) {
+                i1 = 0;
+                j1 = 1;
+                k1 = 0;
+                i2 = 0;
+                j2 = 1;
+                k2 = 1;
+              } else {
+                i1 = 0;
+                j1 = 1;
+                k1 = 0;
+                i2 = 1;
+                j2 = 1;
+                k2 = 0;
+              }
+            }
+            const x1 = x0 - i1 + G3,
+              y1 = y0 - j1 + G3,
+              z1 = z0 - k1 + G3;
+            const x2 = x0 - i2 + 2 * G3,
+              y2 = y0 - j2 + 2 * G3,
+              z2 = z0 - k2 + 2 * G3;
+            const x3 = x0 - 1 + 3 * G3,
+              y3 = y0 - 1 + 3 * G3,
+              z3 = z0 - 1 + 3 * G3;
+            const ii = i & 255,
+              jj = j & 255,
+              kk = k & 255;
+            let t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0;
+            if (t0 < 0) n0 = 0;
+            else {
+              const gi = pm[ii + perm[jj + perm[kk]]];
+              t0 *= t0;
+              n0 = t0 * t0 * dot(grad3[gi], x0, y0, z0);
+            }
+            let t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
+            if (t1 < 0) n1 = 0;
+            else {
+              const gi = pm[ii + i1 + perm[jj + j1 + perm[kk + k1]]];
+              t1 *= t1;
+              n1 = t1 * t1 * dot(grad3[gi], x1, y1, z1);
+            }
+            let t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
+            if (t2 < 0) n2 = 0;
+            else {
+              const gi = pm[ii + i2 + perm[jj + j2 + perm[kk + k2]]];
+              t2 *= t2;
+              n2 = t2 * t2 * dot(grad3[gi], x2, y2, z2);
+            }
+            let t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3;
+            if (t3 < 0) n3 = 0;
+            else {
+              const gi = pm[ii + 1 + perm[jj + 1 + perm[kk + 1]]];
+              t3 *= t3;
+              n3 = t3 * t3 * dot(grad3[gi], x3, y3, z3);
+            }
+            return 32 * (n0 + n1 + n2 + n3);
+          }
+          return { noise };
+        })();
+        function curl(x, y, z) {
+          const e = 8e-4;
+          const n1 = Simplex.noise(x, y + e, z),
+            n2 = Simplex.noise(x, y - e, z);
+          const n3 = Simplex.noise(x + e, y, z),
+            n4 = Simplex.noise(x - e, y, z);
+          return { x: (n1 - n2) / (2 * e), y: -(n3 - n4) / (2 * e) };
+        }
+
+        /* ---------- Phoenix fire palette (temperature → rgb) ---------- */
+        const STOPS = [
+          [0, [38, 30, 32]],
+          [0.18, [96, 28, 22]],
+          [0.4, [188, 32, 26]],
+          [0.62, [255, 108, 12]],
+          [0.82, [255, 192, 72]],
+          [1, [255, 247, 224]],
+        ];
+        function tempColor(t) {
+          t = clamp(t, 0, 1);
+          for (let i = 1; i < STOPS.length; i++) {
+            if (t <= STOPS[i][0]) {
+              const a = STOPS[i - 1],
+                b = STOPS[i],
+                k = (t - a[0]) / (b[0] - a[0]);
+              return [
+                lerp(a[1][0], b[1][0], k),
+                lerp(a[1][1], b[1][1], k),
+                lerp(a[1][2], b[1][2], k),
+              ];
+            }
+          }
+          return STOPS[STOPS.length - 1][1];
+        }
+
+        /* ---------- Lifecycle keyframes: born → blaze → ash → reborn ---------- */
+        function kf(arr, x) {
+          if (x <= arr[0][0]) return arr[0][1];
+          for (let i = 1; i < arr.length; i++)
+            if (x <= arr[i][0]) {
+              const a = arr[i - 1],
+                b = arr[i];
+              return lerp(a[1], b[1], (x - a[0]) / (b[0] - a[0]));
+            }
+          return arr[arr.length - 1][1];
+        }
+        const HEAT = [
+          [0, 0.06],
+          [0.18, 0.12],
+          [0.3, 0.55],
+          [0.45, 1],
+          [0.6, 0.92],
+          [0.72, 0.5],
+          [0.82, 0.18],
+          [0.92, 0.08],
+          [1, 0.06],
+        ];
+        const FORM = [
+          [0, 0],
+          [0.3, 0],
+          [0.4, 0.85],
+          [0.46, 1],
+          [0.6, 1],
+          [0.66, 0.5],
+          [0.72, 0],
+          [1, 0],
+        ];
+        const BURST = [
+          [0, 0],
+          [0.66, 0],
+          [0.72, 0.7],
+          [0.78, 1],
+          [0.86, 0.4],
+          [0.92, 0],
+          [1, 0],
+        ];
+        function phaseWord(l) {
+          if (l < 0.18) return "ashes";
+          if (l < 0.3) return "a spark";
+          if (l < 0.44) return "kindling";
+          if (l < 0.58) return "ablaze";
+          if (l < 0.7) return "ascending";
+          if (l < 0.84) return "burning out";
+          return "embers falling";
+        }
+        // a quiet verse for each turn of the wheel — meaning beneath the fire
+        const VERSES = {
+          ashes: "what remains, remembers",
+          "a spark": "from the dark, a single breath of light",
+          kindling: "the will to begin again",
+          ablaze: "become the fire",
+          ascending: "let the old self burn away",
+          "burning out": "surrender — and you rise",
+          "embers falling": "nothing is ever truly lost",
+        };
+        let verseTimer = null;
+        function showVerse(pw) {
+          const el = $("#verse");
+          if (!el || !VERSES[pw]) return;
+          el.style.opacity = 0;
+          clearTimeout(verseTimer);
+          verseTimer = setTimeout(() => {
+            el.textContent = VERSES[pw];
+            el.style.opacity = 0.85;
+            verseTimer = setTimeout(() => (el.style.opacity = 0), 4200);
+          }, 700);
+        }
+
+        /* ---------- State ---------- */
+        const state = {
+          motion: 1,
+          density: 1,
+          trail: 10,
+          bloom: 0.72,
+          cycle: 26,
+          mouse: {
+            x: innerWidth / 2,
+            y: innerHeight / 2,
+            px: innerWidth / 2,
+            py: innerHeight / 2,
+            active: false,
+          },
+          t: 0,
+          lifeT: 0,
+          life: 0,
+          heat: 0.06,
+          clickHeat: 0,
+          audio: 0,
+          glOK: false,
+          flap: 0, // wing-flap phase
+          flapDown: 0, // tracks downstroke crossings for sound
+          cam: { x: 0, y: 0 }, // drifting parallax camera (screen px)
+          day: 0.6, // 0 night ↔ 1 day/dusk
+          dayT: 0,
+          dayPeriod: 80, // seconds for a full day↔night breath
+          shatter: 0, // 0..1 shatter/reassemble intensity
+          rain: 0, // 0..1 storm intensity
+          rainOn: false,
+          constel: 0, // 0..1 how fully the sky-phoenix has drawn itself
+          mic: 0, // 0..1 smoothed microphone / breath level
+          micOn: false,
+          journey: false, // hands-free guided session
+          journeyT: 0,
+          perfScale: 1, // adaptive performance multiplier
+          timeScale: 1, // the flow of time: <0 rewind, 0 frozen, >1 fast-forward
+          warp: 0, // 0..1 wormhole intensity while travelling
+          timeDir: 1, // smoothed sign of travel (past −1 ↔ future +1)
+          scrub: false, // dragging the life scrubber
+          fourD: 0, // 0..1 block-universe (all-of-time-at-once) view
+          fourDOn: false,
+        };
+
+        /* ---------- Canvas + offscreen accumulation + bloom ---------- */
+        const sceneCv = $("#scene"),
+          pCv = $("#particles");
+        const sctx = sceneCv.getContext("2d");
+        const accCv = document.createElement("canvas");
+        const pctx = accCv.getContext("2d", { alpha: true }); // trails accumulate here
+        const vctx = pCv.getContext("2d", { alpha: true }); // visible
+        const bloomCv = document.createElement("canvas");
+        const bctx = bloomCv.getContext("2d");
+        let W = 0,
+          H = 0,
+          DPR = 1,
+          cx = 0,
+          cy = 0;
+
+        /* ---------- WebGL fire shader ---------- */
+        const GL = (() => {
+          const cv = $("#gl");
+          let gl = null,
+            prog = null,
+            uni = {},
+            ok = false;
+          const VERT = `attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+          const FRAG = `
+      precision highp float;
+      uniform vec2 uRes;uniform float uTime,uHeat,uMotion,uAudio,uDay,uShatter,uForm,uRain,uWarp,uTimeDir,uBlock;uniform vec2 uMouse,uCam;
+      float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+      vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
+      vec2 mod289(vec2 x){return x-floor(x*(1./289.))*289.;}
+      vec3 permute(vec3 x){return mod289(((x*34.)+1.)*x);}
+      float snoise(vec2 v){
+        const vec4 C=vec4(.211324865405187,.366025403784439,-.577350269189626,.024390243902439);
+        vec2 i=floor(v+dot(v,C.yy));vec2 x0=v-i+dot(i,C.xx);
+        vec2 i1=(x0.x>x0.y)?vec2(1.,0.):vec2(0.,1.);
+        vec4 x12=x0.xyxy+C.xxzz;x12.xy-=i1;i=mod289(i);
+        vec3 p=permute(permute(i.y+vec3(0.,i1.y,1.))+i.x+vec3(0.,i1.x,1.));
+        vec3 m=max(.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.);m=m*m;m=m*m;
+        vec3 x=2.*fract(p*C.www)-1.;vec3 h=abs(x)-.5;vec3 ox=floor(x+.5);vec3 a0=x-ox;
+        m*=1.79284291400159-.85373472095314*(a0*a0+h*h);
+        vec3 g;g.x=a0.x*x0.x+h.x*x0.y;g.yz=a0.yz*x12.xz+h.yz*x12.yw;return 130.*dot(m,g);
+      }
+      float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*snoise(p);p*=2.02;a*=.5;}return s;}
+      float starfield(vec2 p){
+        vec2 g=p*vec2(uRes.x/uRes.y,1.)*9.0;
+        vec2 id=floor(g), f=fract(g)-0.5;
+        float h=hash21(id);
+        if(h<0.90) return 0.0;
+        vec2 off=(vec2(hash21(id+1.7),hash21(id+4.3))-0.5)*0.7;
+        float s=smoothstep(0.07,0.0,length(f-off));
+        return s*(0.55+0.45*sin(uTime*2.2+h*42.0));
+      }
+      // celestial body: moon by night, sun by day, drifting across the sky
+      vec2 CPOS(){ return vec2(sin(uTime*0.024)*0.85, 0.40+cos(uTime*0.024)*0.05); }
+      vec3 celestial(vec2 p){
+        vec2 c=CPOS(); float d=length(p-c);
+        vec3 moonC=vec3(0.82,0.87,1.0), sunC=vec3(1.0,0.6,0.2);
+        vec3 cc=mix(moonC,sunC,uDay);
+        float disk=smoothstep(0.075,0.06,d);
+        float craters=0.6+0.4*fbm((p-c)*22.0);          // faint moon texture
+        vec3 col=cc*disk*mix(craters,1.0,uDay);
+        col+=cc*0.14*smoothstep(0.4,0.0,d);              // halo
+        return col;
+      }
+      vec3 fireColor(vec2 p){
+        float t=uTime*.06*uMotion;
+        vec2 fp=p*1.7; fp.y+=t*1.3;                          // rising currents
+        vec2 q=vec2(fbm(fp),fbm(fp+vec2(3.1,1.7)));
+        vec2 r=vec2(fbm(fp+2.*q+vec2(1.7,9.2)+t),fbm(fp+2.*q+vec2(8.3,2.8)-t));
+        float f=fbm(fp+2.*r);
+        float heat=uHeat;
+        float bed=smoothstep(1.0,-0.7,p.y);                  // hotter toward bottom
+        float fire=clamp(f*.5+.5,0.,1.)*mix(.18,1.0,bed)*(.35+heat);
+        vec3 ash=vec3(.035,.028,.03), drk=vec3(.24,.05,.03),
+             red=vec3(.74,.10,.06), org=vec3(1.,.42,.05), gold=vec3(1.,.80,.30);
+        vec3 col=ash;
+        col=mix(col,drk,smoothstep(.10,.40,fire));
+        col=mix(col,red,smoothstep(.30,.62,fire));
+        col=mix(col,org,smoothstep(.55,.82,fire));
+        col=mix(col,gold,smoothstep(.80,1.,fire)*heat);
+        float d=length((p-vec2(0.,-.04))*vec2(1.4,.8));      // phoenix heart updraft
+        col+=org*heat*.45*smoothstep(.7,0.,d);
+        col+=gold*heat*heat*.5*smoothstep(.28,0.,d);
+        vec2 mp=(uMouse-.5*uRes)/uRes.y;                     // breath of air at cursor
+        col+=org*.22*smoothstep(.33,0.,length(p-mp));
+        col*=1.+uAudio*.4;
+        col*=mix(1.,.45,smoothstep(-.1,1.,p.y));             // smoke darkens top
+        return col*.95;
+      }
+      void main(){
+        vec2 p=(gl_FragCoord.xy-.5*uRes)/uRes.y;
+        p+=uCam*0.12;                                        // far-depth parallax drift
+        float wl=-0.20;                                      // waterline (lower ~30%)
+        vec3 col;
+        if(p.y<wl){
+          float dy=wl-p.y;                                   // depth below the surface
+          vec2 rp=vec2(p.x,wl+dy);                           // mirror above the line — the twin
+          rp.x+=sin(dy*20.+uTime*1.5+p.x*6.)*0.016*(0.3+0.7*clamp(dy*2.5,0.,1.));
+          rp.y+=sin(dy*30.-uTime*1.2)*0.006;
+          vec3 refl=fireColor(rp)*0.5;
+          vec3 dayWater=refl*vec3(0.96,0.82,0.66);           // molten ember by day
+          vec3 nightWater=mix(refl*0.6,vec3(0.04,0.09,0.20),0.8); // deep moonlit blue by night
+          refl=mix(nightWater,dayWater,uDay);
+          refl*=smoothstep(-1.05,wl,p.y);                    // fade into the deep
+          col=refl;
+          col+=vec3(1.,.55,.25)*0.045*max(0.,sin(dy*44.-uTime*3.+p.x*9.))*mix(0.4,1.0,uDay);
+          // moon-glade: the celestial body's shimmering column on the water
+          float gx=CPOS().x;
+          float glade=smoothstep(0.16,0.0,abs(p.x-gx))*(0.5+0.5*sin(dy*26.-uTime*2.2+p.x*5.));
+          col+=mix(vec3(0.55,0.68,1.0),vec3(1.,0.6,0.25),uDay)*glade*0.20*smoothstep(-0.95,wl,p.y);
+        } else {
+          col=fireColor(p);
+          // night sky bleeds in where the fire is faint
+          float upper=smoothstep(wl,0.7,p.y);
+          float fireLum=dot(col,vec3(0.33));
+          float nite=clamp((0.5-uDay)/0.5,0.,1.);
+          float dark=smoothstep(0.12,0.0,fireLum);          // only in the dark sky
+          float skyMix=upper*(1.-uDay)*smoothstep(0.16,0.0,fireLum);
+          col=mix(col,vec3(0.015,0.02,0.05),skyMix);
+          // the Milky Way — a tilted river of stars
+          float ca=cos(0.6),sa=sin(0.6);
+          vec2 gp=vec2(p.x*ca-p.y*sa,p.x*sa+p.y*ca);
+          float band=exp(-pow((gp.y-0.33)/0.13,2.0));
+          float haze=fbm(gp*3.0+vec2(0.,uTime*0.01));
+          float gal=band*(0.35+0.65*haze)*nite*upper*dark;
+          col+=mix(vec3(0.45,0.55,0.95),vec3(0.95,0.7,1.0),haze)*gal*0.16;
+          col+=vec3(1.0)*starfield(p*1.7)*band*nite*upper*dark*0.7;
+          col+=vec3(0.8,0.85,1.0)*starfield(p)*nite*upper*dark;
+          // aurora — slow ribbons of soul-light high in the sky
+          float aur=0.;
+          for(int i=0;i<2;i++){
+            float fi=float(i);
+            float yy=0.52+0.13*fi+0.07*snoise(vec2(p.x*1.4+uTime*0.08+fi*5.,fi));
+            aur+=exp(-pow((p.y-yy)/0.05,2.0))*(0.5+0.5*snoise(vec2(p.x*2.0-uTime*0.13,fi*3.0)));
+          }
+          vec3 auroraC=mix(vec3(0.2,0.95,0.6),vec3(0.55,0.3,0.95),0.5+0.5*sin(p.x*1.8+uTime*0.2));
+          col+=auroraC*aur*nite*upper*dark*0.11;
+          col+=celestial(p)*smoothstep(wl,wl+0.08,p.y)*mix(0.7,1.0,1.-uDay);
+        }
+        // waterline glow — where the phoenix meets its reflection-twin (peaks as it forms)
+        col+=mix(vec3(1.,.5,.16),vec3(0.6,0.72,1.0),(1.-uDay)*0.5)
+             *(0.4+uForm*1.0)*(0.3+uHeat)*smoothstep(0.024,0.,abs(p.y-wl));
+        // shatter — a blinding flash blooming from the centre
+        col+=vec3(1.,0.88,0.66)*uShatter*uShatter*0.9*smoothstep(0.95,0.0,length(p));
+        // cool moonlit grade over the whole world at night
+        col=mix(col,col*vec3(0.74,0.82,1.06),(1.-uDay)*0.32);
+        // rain veils the world — cooler, dimmer, wet
+        col=mix(col,col*vec3(0.55,0.64,0.82)+vec3(0.0,0.005,0.02),uRain*0.55);
+        // ===== block-universe: step outside time into the cosmic void =====
+        col=mix(col,col*vec3(0.16,0.2,0.4)+vec3(0.01,0.015,0.04),uBlock*0.82);
+        // ===== the time machine: a wormhole tunnel through the fourth dimension =====
+        if(uWarp>0.005){
+          float r=length(p);
+          float ang=atan(p.y,p.x);
+          // rings rushing toward (future) or away from (past) the vanishing point
+          float rings=0.5+0.5*sin(7.0/max(r,0.05)-uTime*5.0*uTimeDir);
+          float spokes=0.5+0.5*sin(ang*22.0+uTime*0.6*uTimeDir);
+          float tunnel=rings*mix(0.45,1.0,spokes)*smoothstep(1.25,0.05,r);
+          // past = warm amber, future = cool blue
+          vec3 tcol=mix(vec3(1.0,0.66,0.28),vec3(0.45,0.72,1.0),0.5+0.5*uTimeDir);
+          tcol=mix(tcol,vec3(1.0),0.4*smoothstep(0.35,0.0,r));   // white-hot core
+          vec3 warped=col*0.4+tcol*tunnel*1.05;
+          warped+=vec3(1.0)*smoothstep(0.1,0.0,r)*uWarp*0.7;      // singularity glow
+          col=mix(col,warped,uWarp*0.9);
+          // chromatic smear streaking outward from the centre
+          col.r+=tunnel*0.12*uWarp;
+          col.b+=(1.0-tunnel)*0.10*uWarp;
+        }
+        gl_FragColor=vec4(col,1.);
+      }`;
+          function comp(ty, src) {
+            const s = gl.createShader(ty);
+            gl.shaderSource(s, src);
+            gl.compileShader(s);
+            if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+              console.warn(gl.getShaderInfoLog(s));
+              return null;
+            }
+            return s;
+          }
+          function init() {
+            try {
+              gl =
+                cv.getContext("webgl", { antialias: false, alpha: false }) ||
+                cv.getContext("experimental-webgl");
+            } catch (e) {
+              gl = null;
+            }
+            if (!gl) return false;
+            const vs = comp(gl.VERTEX_SHADER, VERT),
+              fs = comp(gl.FRAGMENT_SHADER, FRAG);
+            if (!vs || !fs) return false;
+            prog = gl.createProgram();
+            gl.attachShader(prog, vs);
+            gl.attachShader(prog, fs);
+            gl.linkProgram(prog);
+            if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return false;
+            gl.useProgram(prog);
+            const b = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, b);
+            gl.bufferData(
+              gl.ARRAY_BUFFER,
+              new Float32Array([-1, -1, 3, -1, -1, 3]),
+              gl.STATIC_DRAW,
+            );
+            const loc = gl.getAttribLocation(prog, "p");
+            gl.enableVertexAttribArray(loc);
+            gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+            for (const n of [
+              "uRes",
+              "uTime",
+              "uHeat",
+              "uMotion",
+              "uAudio",
+              "uMouse",
+              "uCam",
+              "uDay",
+              "uShatter",
+              "uForm",
+              "uRain",
+              "uWarp",
+              "uTimeDir",
+              "uBlock",
+            ])
+              uni[n] = gl.getUniformLocation(prog, n);
+            ok = true;
+            return true;
+          }
+          function resizeGL() {
+            if (!ok) return;
+            const f = Math.min(DPR, 1.5) * 0.6 * state.perfScale;
+            cv.width = Math.max(2, (W * f) | 0);
+            cv.height = Math.max(2, (H * f) | 0);
+            cv.style.width = W + "px";
+            cv.style.height = H + "px";
+            gl.viewport(0, 0, cv.width, cv.height);
+          }
+          function render() {
+            if (!ok) return;
+            gl.uniform2f(uni.uRes, cv.width, cv.height);
+            gl.uniform1f(uni.uTime, state.t);
+            gl.uniform1f(
+              uni.uHeat,
+              clamp(
+                (state.heat + state.clickHeat * 0.6) * (1 - state.rain * 0.6),
+                0,
+                1.2,
+              ),
+            );
+            gl.uniform1f(uni.uMotion, state.motion);
+            gl.uniform1f(uni.uAudio, state.audio);
+            gl.uniform2f(
+              uni.uMouse,
+              (state.mouse.x / W) * cv.width,
+              (1 - state.mouse.y / H) * cv.height,
+            );
+            gl.uniform2f(uni.uCam, state.cam.x / H, -state.cam.y / H); // normalized parallax
+            gl.uniform1f(uni.uDay, state.day);
+            gl.uniform1f(uni.uShatter, state.shatter);
+            gl.uniform1f(uni.uForm, kf(FORM, state.life));
+            gl.uniform1f(uni.uRain, state.rain);
+            gl.uniform1f(uni.uWarp, state.warp);
+            gl.uniform1f(uni.uTimeDir, state.timeDir);
+            gl.uniform1f(uni.uBlock, state.fourD);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+          }
+          return {
+            init,
+            resizeGL,
+            render,
+            get ok() {
+              return ok;
+            },
+          };
+        })();
+
+        function resize() {
+          DPR = Math.min(devicePixelRatio || 1, 2);
+          W = innerWidth;
+          H = innerHeight;
+          cx = W * 0.5;
+          cy = H * 0.54;
+          for (const cv of [sceneCv, pCv, accCv]) {
+            cv.width = W * DPR;
+            cv.height = H * DPR;
+            cv.style.width = W + "px";
+            cv.style.height = H + "px";
+          }
+          sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+          pctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+          vctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+          bloomCv.width = Math.max(2, (W * 0.5) | 0);
+          bloomCv.height = Math.max(2, (H * 0.5) | 0);
+          GL.resizeGL();
+          initParticles();
+        }
+        addEventListener("resize", resize);
+
+        /* ---------- Phoenix silhouette (normalized, y up; tagged for the wing-flap) ----------
+           reg: 0 body · 1 head/crest · 2 wing · 3 tail
+           u: lever along a wing feather (0 root → 1 tip), used by the flap
+           side: -1 / +1 wing side                                                            */
+        const PH_PTS = (() => {
+          const pts = [];
+          const push = (x, y, reg, u, side) =>
+            pts.push({ x, y, reg, u: u || 0, side: side || 0 });
+          // body — a teardrop core
+          for (let i = 0; i < 30; i++) {
+            const t = i / 30,
+              yy = lerp(-0.16, 0.14, t),
+              w = 0.075 * Math.sin(Math.PI * (t * 0.92 + 0.06));
+            push(0, yy, 0);
+            push(w, yy, 0);
+            push(-w, yy, 0);
+          }
+          // head + crest flames
+          for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * TAU;
+            push(Math.cos(a) * 0.052, 0.2 + Math.sin(a) * 0.052, 1);
+          }
+          push(0.0, 0.28, 1);
+          push(0.025, 0.31, 1);
+          push(-0.02, 0.33, 1);
+          push(0.05, 0.27, 1);
+          // wings — feathers fanning up & out from the shoulders
+          for (let s = -1; s <= 1; s += 2) {
+            const shx = s * 0.05,
+              shy = 0.04,
+              F = 17;
+            for (let fi = 0; fi < F; fi++) {
+              const u = fi / (F - 1);
+              const ang = lerp(8, 82, u) * (Math.PI / 180);
+              const len = lerp(0.68, 1.05, Math.sin(u * Math.PI) * 0.4 + 0.6);
+              const tipx = shx + s * Math.cos(ang) * len,
+                tipy = shy + Math.sin(ang) * len;
+              const seg = Math.round(len * 15) + 2;
+              for (let q = 0; q <= seg; q++) {
+                const t = q / seg,
+                  cv = Math.sin(t * Math.PI) * 0.06 * s;
+                push(lerp(shx, tipx, t) + cv, lerp(shy, tipy, t), 2, t, s);
+              }
+            }
+          }
+          // tail — long feathers flowing downward like flames
+          const T = 11;
+          for (let ti = 0; ti < T; ti++) {
+            const u = ti / (T - 1);
+            const ang = lerp(252, 288, u) * (Math.PI / 180); // ~down, fanned
+            const len = lerp(0.5, 0.82, 1 - Math.abs(u - 0.5) * 1.1);
+            const baseY = -0.15;
+            const tipx = Math.cos(ang) * len,
+              tipy = baseY + Math.sin(ang) * len;
+            const seg = Math.round(len * 18) + 2;
+            for (let q = 0; q <= seg; q++) {
+              const t = q / seg,
+                wv = Math.sin(t * 4) * 0.025 * (u - 0.5);
+              push(lerp(0, tipx, t) + wv, lerp(baseY, tipy, t), 3, t);
+            }
+          }
+          return pts;
+        })();
+
+        /* ---------- Constellation phoenix (sky-bird: nodes + edges, y up) ---------- */
+        const CONSTEL = {
+          n: [
+            [0, 1.0], // 0 head
+            [0, 0.62], // 1 neck
+            [0, 0.22], // 2 heart
+            [0, -0.18], // 3 belly
+            [-0.16, 0.44], // 4 L shoulder
+            [0.16, 0.44], // 5 R shoulder
+            [-0.52, 0.66], // 6 L wing mid
+            [0.52, 0.66], // 7 R wing mid
+            [-0.98, 1.0], // 8 L wing tip
+            [0.98, 1.0], // 9 R wing tip
+            [-0.62, 0.2], // 10 L wing low
+            [0.62, 0.2], // 11 R wing low
+            [0, -0.56], // 12 tail mid
+            [-0.26, -1.02], // 13 tail L
+            [0.26, -1.02], // 14 tail R
+            [0, -1.06], // 15 tail centre
+          ],
+          e: [
+            [0, 1],
+            [1, 2],
+            [2, 3],
+            [3, 12],
+            [12, 15],
+            [12, 13],
+            [12, 14],
+            [1, 4],
+            [1, 5],
+            [4, 6],
+            [6, 8],
+            [4, 10],
+            [5, 7],
+            [7, 9],
+            [5, 11],
+          ],
+        };
+
+        /* ---------- Embers ---------- */
+        let particles = [],
+          sparks = [],
+          ripples = [],
+          bonfires = [],
+          rainDrops = [],
+          steam = [],
+          companions = [],
+          shooters = [];
+        let crackSeed = 0; // randomized per shatter for the fracture lines
+        let unionT = -10; // last time the two phoenixes embraced
+        const compState = {
+          active: false,
+          life: 0,
+          ang: 0,
+          x: 0,
+          y: 0,
+          scale: 0,
+        };
+        const trailPts = [];
+        const BONFIRE_SEC = 22,
+          BONFIRE_MAX = 8;
+        function initParticles() {
+          const n = Math.floor(((W * H) / 3200) * state.density);
+          particles = [];
+          for (let i = 0; i < n; i++) {
+            const p = newE(true);
+            // spread embers evenly across the WHOLE silhouette (not just the first points)
+            p.pi = Math.floor((i / n) * PH_PTS.length) % PH_PTS.length;
+            particles.push(p);
+          }
+          // the companion — a smaller second phoenix that can rise and orbit
+          const cn = Math.floor(n * 0.42);
+          companions = [];
+          for (let i = 0; i < cn; i++) {
+            const p = newE(false);
+            p.pi = Math.floor((i / cn) * PH_PTS.length) % PH_PTS.length;
+            companions.push(p);
+          }
+        }
+        function newE(spread) {
+          return {
+            x: rand(0, W),
+            y: spread ? rand(0, H) : H + rand(0, 40),
+            vx: 0,
+            vy: 0,
+            pi: 0,
+            z: rand(0.3, 1), // depth for parallax
+            r: rand(0.6, 2.6),
+            temp: rand(0, 0.12),
+            seed: rand(0, TAU),
+          };
+        }
+
+        function drawEmbers(dt) {
+          // fade accumulation → motion-blur current trails
+          // (time-travel stretches trails into long 4D echoes)
+          const trailEff = state.trail * (1 + state.warp * 2.4);
+          pctx.globalCompositeOperation = "destination-out";
+          pctx.fillStyle = `rgba(0,0,0,${clamp(1 / trailEff, 0, 1)})`;
+          pctx.fillRect(0, 0, W, H);
+          pctx.globalCompositeOperation = "lighter";
+
+          drawClock();
+          drawConstellation();
+          drawShooters(dt);
+          drawRain(dt);
+          drawBonfires(dt);
+
+          const m = state.mouse;
+          const heat = clamp(
+            (state.heat + state.clickHeat) * (1 - state.rain * 0.7),
+            0,
+            1.3,
+          );
+          const form = kf(FORM, state.life),
+            burst = kf(BURST, state.life);
+          const cur = 0.55 * state.motion;
+          const flowS = 0.0016,
+            flowT = state.t * 0.05 * state.motion;
+          const wingR = Math.min(W, H) * 0.3;
+
+          const phS = Math.min(W, H) * 0.46; // phoenix scale
+          const phAY = cy - H * 0.13; // anchor lifted so the tail stays above the water
+          const flapSin = Math.sin(state.flap);
+          const bodyBob = flapSin * H * 0.022 * form; // whole bird rises on the downstroke
+          const formE = form * (1 - state.shatter); // formation pauses while shattered
+          const reform = (1 - state.shatter) * 0.9; // pull-back grows as the shards return
+          for (const p of particles) {
+            // 1) ocean-current flow (curl noise) + audio surge — eased out while the bird forms
+            const fc = curl(p.x * flowS, p.y * flowS, flowT);
+            const curK = cur * (1 - form * 0.78) * (1 + state.audio * 0.5);
+            p.vx += fc.x * curK;
+            p.vy += fc.y * curK * (1 / (1 + state.audio * 0.5));
+            // 2) thermal rise — embers ascend, hotter rises faster
+            p.vy -=
+              (0.18 + heat * 0.5) *
+              (0.3 + p.temp) *
+              state.motion *
+              (1 - form * 0.85);
+
+            // 2b) shatter — embers are flung out, then sucked back to reassemble
+            if (state.shatter > 0.01) {
+              const dx = cx - p.x,
+                dy = cy - H * 0.05 - p.y,
+                d = Math.hypot(dx, dy) || 1;
+              p.vx += (dx / d) * reform;
+              p.vy += (dy / d) * reform;
+            }
+
+            // 2c) time-warp — the wings of time spiral into the wormhole
+            if (state.warp > 0.05) {
+              const dx = cx - p.x,
+                dy = cy - H * 0.05 - p.y,
+                d = Math.hypot(dx, dy) || 1;
+              const inward = state.warp * 1.2 * state.timeDir;
+              const swirl = state.warp * 1.7 * state.timeDir;
+              p.vx += (dx / d) * inward + (-dy / d) * swirl;
+              p.vy += (dy / d) * inward + (dx / d) * swirl;
+              p.temp = Math.max(p.temp, state.warp * 0.5);
+            }
+
+            // 3) phoenix forms: embers gather into the silhouette (wings, body, tail, crest)
+            if (formE > 0.01) {
+              const tp = PH_PTS[p.pi];
+              const wob =
+                Simplex.noise(tp.x * 2.5 + state.t * 0.7, tp.y * 2.5, 9) * 0.03;
+              const wob2 =
+                Simplex.noise(tp.y * 2.5 - state.t * 0.6, tp.x * 2.5, 4) * 0.03;
+              let bx = tp.x + wob,
+                by = tp.y + wob2;
+              if (tp.reg === 2) {
+                // wings flap: feather tips sweep up on the upstroke, down + inward on the downstroke
+                by += flapSin * tp.u * 0.34;
+                bx -= tp.side * (1 - flapSin) * 0.05 * tp.u;
+              } else if (tp.reg === 3) {
+                by += flapSin * tp.u * 0.06; // tail trails the motion a touch
+              }
+              const tx = cx + bx * phS;
+              const ty = phAY + bodyBob - by * phS; // y up → screen y down
+              p.vx += (tx - p.x) * 0.045 * formE;
+              p.vy += (ty - p.y) * 0.045 * formE;
+              p.temp = Math.max(
+                p.temp,
+                (0.92 + 0.08 * Math.sin(state.t * 3 + p.seed)) * formE,
+              );
+            }
+
+            // 4) death — the phoenix bursts into rising sparks
+            if (burst > 0.01) {
+              const dx = p.x - cx,
+                dy = p.y - cy,
+                d = Math.hypot(dx, dy) || 1;
+              p.vx += (dx / d) * burst * 1.6;
+              p.vy += (dy / d) * burst * 0.9 - burst * 0.9;
+              p.temp = Math.max(p.temp, burst * 0.9);
+            }
+
+            // 5) the cursor is a breath of air feeding the fire
+            if (m.active) {
+              const dx = m.x - p.x,
+                dy = m.y - p.y,
+                d2 = dx * dx + dy * dy;
+              if (d2 < 240 * 240) {
+                const d = Math.sqrt(d2) || 1,
+                  fall = 1 - d / 240;
+                p.vx += (-dy / d) * fall * 0.7 + (dx / d) * fall * 0.12; // swirl + slight inhale
+                p.vy += (dx / d) * fall * 0.7 - fall * 0.6; // lifted upward
+                p.temp = Math.min(1, p.temp + fall * 0.05);
+              }
+            }
+
+            // 6) lingering bonfires breathe heat and an updraft into nearby embers
+            // (eased off while the phoenix gathers, so the bird holds its shape)
+            const bfK = 1 - form * 0.85;
+            for (const bf of bonfires) {
+              const dx = p.x - bf.x,
+                dy = p.y - bf.y,
+                d = Math.hypot(dx, dy) || 1;
+              if (d < 160) {
+                const fall = (1 - d / 160) * bf.life;
+                p.vy -= fall * 1.3 * bfK;
+                p.vx += (dx / d) * fall * 0.3 * bfK;
+                p.temp = Math.min(1, p.temp + fall * 0.05);
+              }
+            }
+
+            const damp =
+              form > 0.4 ? lerp(0.94, 0.84, (form - 0.4) / 0.6) : 0.94;
+            p.vx *= damp;
+            p.vy *= damp;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+
+            // recycle: embers rise off the top and are reborn at the ember bed
+            if (p.y < -24) {
+              p.y = H + rand(0, 30);
+              p.x = rand(0, W);
+              p.vx = 0;
+              p.vy = 0;
+              p.temp = rand(0, 0.1);
+            }
+            if (p.x < -24) p.x = W + 24;
+            if (p.x > W + 24) p.x = -24;
+            if (p.y > H + 50) {
+              p.y = H + 50;
+              p.vy *= -0.3;
+            }
+
+            // temperature: hottest at the ember bed (bottom) scaled by global heat; cools as it rises
+            const bed = clamp(p.y / H, 0, 1);
+            const ambient = heat * (0.25 + 0.85 * bed);
+            p.temp += (ambient - p.temp) * 0.03;
+            p.temp -= 0.005 + state.rain * 0.022; // rain steals the heat
+            p.temp = clamp(p.temp, 0, 1);
+            // the rain meets the fire and hisses into steam
+            if (
+              state.rain > 0.25 &&
+              p.temp > 0.5 &&
+              Math.random() < state.rain * 0.04 &&
+              steam.length < 240
+            ) {
+              steam.push({
+                x: p.x,
+                y: p.y,
+                vy: -rand(0.4, 1.2),
+                life: 1,
+                r: rand(6, 16),
+              });
+              p.temp *= 0.6;
+            }
+
+            // parallax: nearer embers (higher z) drift more with the camera
+            const par = 0.2 + p.z * 0.8;
+            drawEmber(
+              p.x + state.cam.x * par,
+              p.y + state.cam.y * par,
+              p.r,
+              p.temp,
+              p.vx,
+              p.vy,
+            );
+          }
+
+          // sparks from clicks / rebirth bursts
+          for (const s of sparks) {
+            s.vy += 0.06; // gentle gravity after the lift
+            s.vx *= 0.97;
+            s.vy *= 0.97;
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+            s.life -= 0.012 * dt;
+            s.temp = clamp(s.life * 1.1, 0, 1);
+            if (s.life > 0)
+              drawEmber(
+                s.x + state.cam.x * 0.7,
+                s.y + state.cam.y * 0.7,
+                1.8,
+                s.temp,
+                s.vx,
+                s.vy,
+              );
+          }
+          sparks = sparks.filter((s) => s.life > 0);
+
+          // cursor ember-trail
+          drawTrail();
+
+          // fire rings from ignition
+          for (const r of ripples) {
+            r.rad += 3.6 * dt;
+            r.life -= 0.02 * dt;
+            const c = tempColor(0.7);
+            vrStroke(
+              r.x,
+              r.y,
+              r.rad,
+              `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${Math.max(0, r.life) * 0.5})`,
+              2.4 * Math.max(0, r.life),
+            );
+          }
+          ripples = ripples.filter((r) => r.life > 0);
+
+          drawCompanion(dt);
+          drawMandala(dt);
+          drawBlockUniverse();
+          drawSteam(dt);
+          drawCracks();
+          composite();
+        }
+
+        /* ---------- Rain: water against fire ---------- */
+        function drawRain(dt) {
+          if (state.rain < 0.02 && rainDrops.length === 0) return;
+          const wlY = H * 0.7;
+          // spawn
+          const want = Math.floor(state.rain * 240);
+          while (rainDrops.length < want)
+            rainDrops.push({
+              x: rand(-40, W + 40),
+              y: rand(-H, 0),
+              z: rand(0.4, 1),
+              vy: rand(13, 22),
+            });
+          pctx.lineCap = "round";
+          for (let i = rainDrops.length - 1; i >= 0; i--) {
+            const d = rainDrops[i];
+            d.y += d.vy * d.z * dt;
+            d.x += 1.2 * d.z * dt; // slight wind
+            const par = 0.2 + d.z * 0.8;
+            const dx = d.x + state.cam.x * par,
+              dy = d.y + state.cam.y * par;
+            const len = 9 + d.z * 14;
+            pctx.strokeStyle = `rgba(150,180,230,${0.06 + d.z * 0.12})`;
+            pctx.lineWidth = d.z * 1.2;
+            pctx.beginPath();
+            pctx.moveTo(dx, dy);
+            pctx.lineTo(dx - 1.2 * len * 0.1, dy - len);
+            pctx.stroke();
+            if (d.y >= wlY) {
+              // strike the water — a small ripple
+              ripples.push({ x: d.x, y: wlY, rad: 2, life: 0.5 });
+              if (rainDrops.length > want) rainDrops.splice(i, 1);
+              else {
+                d.y = rand(-H, -10);
+                d.x = rand(-40, W + 40);
+              }
+            }
+          }
+          if (state.rain < 0.02) rainDrops.length = 0;
+        }
+        function drawSteam(dt) {
+          for (let i = steam.length - 1; i >= 0; i--) {
+            const s = steam[i];
+            s.y += s.vy * dt;
+            s.life -= 0.02 * dt;
+            if (s.life <= 0) {
+              steam.splice(i, 1);
+              continue;
+            }
+            const a = s.life * 0.16;
+            const g = pctx.createRadialGradient(
+              s.x,
+              s.y,
+              0,
+              s.x,
+              s.y,
+              s.r * (2 - s.life),
+            );
+            g.addColorStop(0, `rgba(200,200,210,${a})`);
+            g.addColorStop(1, "rgba(200,200,210,0)");
+            pctx.fillStyle = g;
+            pctx.beginPath();
+            pctx.arc(s.x, s.y, s.r * (2 - s.life), 0, TAU);
+            pctx.fill();
+          }
+        }
+
+        /* ---------- Constellation phoenix written across the night sky ---------- */
+        function drawConstellation() {
+          const night = clamp((0.42 - state.day) / 0.42, 0, 1);
+          // the sky-bird shows when the fire rests; the blaze outshines it
+          const calm = clamp(1.15 - state.heat * 2.2, 0, 1);
+          const vis = night * state.constel * calm;
+          if (vis < 0.02) return;
+          const S = Math.min(W, H) * 0.26;
+          const ox = cx + state.cam.x * 0.25,
+            oy = H * 0.17 + state.cam.y * 0.25; // high in the sky, above the fire
+          const P = (i) => [ox + CONSTEL.n[i][0] * S, oy - CONSTEL.n[i][1] * S];
+          // edges — silver threads
+          pctx.lineWidth = 1.4;
+          for (const [a, b] of CONSTEL.e) {
+            const A = P(a),
+              B = P(b);
+            pctx.strokeStyle = `rgba(175,205,255,${vis * 0.34})`;
+            pctx.beginPath();
+            pctx.moveTo(A[0], A[1]);
+            pctx.lineTo(B[0], B[1]);
+            pctx.stroke();
+          }
+          // nodes — twinkling stars
+          for (let i = 0; i < CONSTEL.n.length; i++) {
+            const A = P(i);
+            const tw = 0.6 + 0.4 * Math.sin(state.t * 2 + i * 1.7);
+            const r = (i === 2 ? 4.2 : 2.7) * tw; // the heart shines brightest
+            const g = pctx.createRadialGradient(
+              A[0],
+              A[1],
+              0,
+              A[0],
+              A[1],
+              r * 6,
+            );
+            g.addColorStop(0, `rgba(228,238,255,${vis * (0.85 + 0.15 * tw)})`);
+            g.addColorStop(0.5, `rgba(175,205,255,${vis * 0.32})`);
+            g.addColorStop(1, "rgba(175,205,255,0)");
+            pctx.fillStyle = g;
+            pctx.beginPath();
+            pctx.arc(A[0], A[1], r * 6, 0, TAU);
+            pctx.fill();
+          }
+        }
+
+        /* ---------- Shooting stars cross the night ---------- */
+        function drawShooters(dt) {
+          const night = clamp((0.45 - state.day) / 0.45, 0, 1);
+          if (
+            night > 0.4 &&
+            shooters.length < 2 &&
+            Math.random() < 0.004 * night
+          ) {
+            const sx = rand(0, W),
+              sy = rand(0, H * 0.4),
+              dir = rand(-0.5, 0.5);
+            shooters.push({
+              x: sx,
+              y: sy,
+              vx: rand(9, 16) * (Math.random() < 0.5 ? 1 : -1),
+              vy: rand(3, 7) + dir * 4,
+              life: 1,
+            });
+          }
+          for (let i = shooters.length - 1; i >= 0; i--) {
+            const s = shooters[i];
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+            s.life -= 0.012 * dt;
+            if (s.life <= 0 || s.y > H) {
+              shooters.splice(i, 1);
+              continue;
+            }
+            const a = Math.max(0, s.life) * night;
+            const g = pctx.createLinearGradient(
+              s.x,
+              s.y,
+              s.x - s.vx * 6,
+              s.y - s.vy * 6,
+            );
+            g.addColorStop(0, `rgba(230,240,255,${a})`);
+            g.addColorStop(1, "rgba(230,240,255,0)");
+            pctx.strokeStyle = g;
+            pctx.lineWidth = 1.6;
+            pctx.beginPath();
+            pctx.moveTo(s.x, s.y);
+            pctx.lineTo(s.x - s.vx * 6, s.y - s.vy * 6);
+            pctx.stroke();
+          }
+        }
+
+        /* ---------- The lotus-mandala that blooms at the heart of the blaze ---------- */
+        /* ---------- The block universe: the whole life laid out along its worldline ---------- */
+        function drawBlockUniverse() {
+          if (state.fourD < 0.02) return;
+          const a0 = state.fourD;
+          const baseY = cy - H * 0.06;
+          const N = 11;
+          const pts = [];
+          for (let k = -N; k <= N; k++) {
+            const lf = (((state.life + k * 0.045) % 1) + 1) % 1;
+            const x = cx + Math.tanh(k * 0.16) * W * 0.44 + state.cam.x * 0.3;
+            const y =
+              baseY +
+              Math.sin(k * 0.45 + state.t * 0.3) * H * 0.05 -
+              Math.abs(k) * H * 0.004 +
+              state.cam.y * 0.3;
+            pts.push({ x, y, k, lf });
+          }
+          // the worldline threading every moment of the life
+          pctx.strokeStyle = `rgba(150,180,255,${a0 * 0.3})`;
+          pctx.lineWidth = 1.5;
+          pctx.beginPath();
+          pts.forEach((p, i) =>
+            i ? pctx.lineTo(p.x, p.y) : pctx.moveTo(p.x, p.y),
+          );
+          pctx.stroke();
+          // each ghost-self at its moment in time
+          for (const p of pts) {
+            if (p.k === 0) continue; // "now" is the living phoenix in the centre
+            const heat = kf(HEAT, p.lf),
+              form = kf(FORM, p.lf);
+            const sc = 1 - (Math.abs(p.k) / N) * 0.65;
+            const alpha = a0 * (1 - (Math.abs(p.k) / N) * 0.5) * 0.95;
+            const R = Math.min(W, H) * 0.05 * sc * (0.7 + heat * 0.6);
+            const c = tempColor(0.2 + heat * 0.7);
+            const col = `${c[0] | 0},${c[1] | 0},${c[2] | 0}`;
+            if (form > 0.05) {
+              pctx.strokeStyle = `rgba(${col},${alpha * 0.45})`;
+              pctx.lineWidth = 1.2 * sc;
+              for (const s of [-1, 1]) {
+                pctx.beginPath();
+                pctx.moveTo(p.x, p.y);
+                pctx.quadraticCurveTo(
+                  p.x + s * R * 2.0,
+                  p.y - R * 2.4 * form,
+                  p.x + s * R * 3.0,
+                  p.y - R * 0.5,
+                );
+                pctx.stroke();
+              }
+            }
+            const g = pctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R * 2.2);
+            g.addColorStop(0, `rgba(${col},${alpha})`);
+            g.addColorStop(1, `rgba(${col},0)`);
+            pctx.fillStyle = g;
+            pctx.beginPath();
+            pctx.arc(p.x, p.y, R * 2.2, 0, TAU);
+            pctx.fill();
+          }
+          // a faint "now" marker beneath the living phoenix
+          const nx = cx + state.cam.x * 0.3;
+          pctx.strokeStyle = `rgba(255,210,150,${a0 * 0.5})`;
+          pctx.lineWidth = 1;
+          pctx.beginPath();
+          pctx.moveTo(nx, baseY - H * 0.12);
+          pctx.lineTo(nx, baseY + H * 0.12);
+          pctx.stroke();
+        }
+
+        /* ---------- The wheel / wings of time — a clock around the heart ---------- */
+        function drawClock() {
+          // always faintly present, blazing while you travel through time
+          const vis = 0.1 + state.warp * 0.9;
+          const mx = cx + state.cam.x * 0.5,
+            my = cy - H * 0.05 + state.cam.y * 0.5;
+          const R = Math.min(W, H) * (0.17 + state.warp * 0.04);
+          const c = tempColor(0.8);
+          const col = `${c[0] | 0},${c[1] | 0},${c[2] | 0}`;
+          // outer ring
+          pctx.strokeStyle = `rgba(${col},${vis * 0.4})`;
+          pctx.lineWidth = 1.4;
+          pctx.beginPath();
+          pctx.arc(mx, my, R, 0, TAU);
+          pctx.stroke();
+          // twelve hour-ticks (the wings spread around the dial)
+          for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * TAU - Math.PI / 2;
+            const r0 = R * (i % 3 === 0 ? 0.9 : 0.95);
+            pctx.strokeStyle = `rgba(${col},${vis * (i % 3 === 0 ? 0.7 : 0.4)})`;
+            pctx.lineWidth = i % 3 === 0 ? 2 : 1;
+            pctx.beginPath();
+            pctx.moveTo(mx + Math.cos(a) * r0, my + Math.sin(a) * r0);
+            pctx.lineTo(mx + Math.cos(a) * R, my + Math.sin(a) * R);
+            pctx.stroke();
+          }
+          // the life-hand points to this moment of the cycle
+          const la = state.life * TAU - Math.PI / 2;
+          pctx.strokeStyle = `rgba(${col},${vis * 0.8})`;
+          pctx.lineWidth = 2.2;
+          pctx.beginPath();
+          pctx.moveTo(mx, my);
+          pctx.lineTo(
+            mx + Math.cos(la) * R * 0.82,
+            my + Math.sin(la) * R * 0.82,
+          );
+          pctx.stroke();
+          // a racing second-hand while travelling
+          if (state.warp > 0.05) {
+            const sa = state.t * 6 * state.timeDir;
+            const sc = tempColor(0.95);
+            pctx.strokeStyle = `rgba(${sc[0] | 0},${sc[1] | 0},${sc[2] | 0},${state.warp * 0.8})`;
+            pctx.lineWidth = 1.2;
+            pctx.beginPath();
+            pctx.moveTo(mx, my);
+            pctx.lineTo(
+              mx + Math.cos(sa) * R * 0.95,
+              my + Math.sin(sa) * R * 0.95,
+            );
+            pctx.stroke();
+          }
+        }
+
+        function drawMandala(dt) {
+          const m =
+            clamp(kf(FORM, state.life) * 1.1, 0, 1) * (1 - state.shatter);
+          if (m < 0.05) return;
+          const mx = cx + state.cam.x * 0.5,
+            my = cy - H * 0.05 + state.cam.y * 0.5;
+          const baseR = Math.min(W, H) * 0.17 * m;
+          for (let layer = 0; layer < 3; layer++) {
+            const petals = 8 + layer * 4;
+            const rot = state.t * (0.12 - layer * 0.05) + layer * 1.3;
+            const rr = baseR * (0.45 + layer * 0.42);
+            const c = tempColor(0.95 - layer * 0.06);
+            const col = `${c[0] | 0},${c[1] | 0},${c[2] | 0}`;
+            pctx.strokeStyle = `rgba(${col},${0.34 * m})`;
+            pctx.lineWidth = 1.6;
+            for (let i = 0; i < petals; i++) {
+              const a = rot + (i / petals) * TAU;
+              const perp = a + Math.PI / 2;
+              const w = rr * 0.2;
+              const tipx = mx + Math.cos(a) * rr,
+                tipy = my + Math.sin(a) * rr;
+              const c1x = mx + Math.cos(a) * rr * 0.5 + Math.cos(perp) * w,
+                c1y = my + Math.sin(a) * rr * 0.5 + Math.sin(perp) * w;
+              const c2x = mx + Math.cos(a) * rr * 0.5 - Math.cos(perp) * w,
+                c2y = my + Math.sin(a) * rr * 0.5 - Math.sin(perp) * w;
+              pctx.beginPath();
+              pctx.moveTo(mx, my);
+              pctx.quadraticCurveTo(c1x, c1y, tipx, tipy);
+              pctx.quadraticCurveTo(c2x, c2y, mx, my);
+              pctx.stroke();
+            }
+            pctx.strokeStyle = `rgba(${col},${0.2 * m})`;
+            pctx.beginPath();
+            pctx.arc(mx, my, rr, 0, TAU);
+            pctx.stroke();
+          }
+        }
+
+        /* ---------- The companion: a second phoenix born of a bonfire, orbiting the first ---------- */
+        function drawCompanion(dt) {
+          const form = kf(FORM, state.life);
+          if (!compState.active) {
+            if (form > 0.3 && state.shatter < 0.2) {
+              const bf = bonfires.find((b) => b.life > 0.6);
+              if (bf) {
+                compState.active = true;
+                compState.life = 0.001;
+                compState.ang = Math.atan2(bf.y - (cy - H * 0.05), bf.x - cx);
+                compState.x = bf.x;
+                compState.y = bf.y;
+              }
+            }
+          } else {
+            const fed = bonfires.some((b) => b.life > 0.3) && form > 0.12;
+            compState.life = clamp(
+              compState.life + (fed ? 0.012 : -0.02) * dt,
+              0,
+              1,
+            );
+            if (compState.life <= 0) compState.active = false;
+            compState.ang += 0.013 * dt; // orbit the first
+            const orbitR = Math.min(W, H) * 0.34;
+            const ax = cx + Math.cos(compState.ang) * orbitR;
+            const ay = cy - H * 0.08 + Math.sin(compState.ang) * orbitR * 0.5;
+            compState.x = lerp(compState.x, ax, clamp(0.03 * dt, 0, 1));
+            compState.y = lerp(compState.y, ay, clamp(0.03 * dt, 0, 1));
+            // union: when the two phoenixes pass close, they flare as one
+            const hx = cx,
+              hy = cy - H * 0.08;
+            const near = Math.hypot(compState.x - hx, compState.y - hy);
+            if (near < Math.min(W, H) * 0.16 && state.t - unionT > 2.4) {
+              unionT = state.t;
+              const ux = (compState.x + hx) / 2,
+                uy = (compState.y + hy) / 2;
+              ripples.push({ x: ux, y: uy, rad: 6, life: 1 });
+              state.clickHeat = Math.min(1.3, state.clickHeat + 0.5);
+              for (let i = 0; i < 40 && sparks.length < 600; i++) {
+                const a = rand(0, TAU),
+                  sp = rand(2, 8);
+                sparks.push({
+                  x: ux,
+                  y: uy,
+                  vx: Math.cos(a) * sp,
+                  vy: Math.sin(a) * sp - 2,
+                  life: rand(0.5, 1),
+                  temp: 1,
+                });
+              }
+              audio.union();
+            }
+          }
+          const formC = compState.active
+            ? clamp(compState.life * 1.4, 0, 1) * form
+            : 0;
+          const phS = Math.min(W, H) * 0.2 * (0.45 + 0.55 * compState.life);
+          const flapSin = Math.sin(state.flap * 1.3 + 1.0);
+          const flowT = state.t * 0.05 * state.motion + 10;
+          for (const p of companions) {
+            const fc = curl(p.x * 0.0016, p.y * 0.0016, flowT);
+            p.vx += fc.x * 0.3;
+            p.vy += fc.y * 0.3 - 0.12;
+            if (formC > 0.01) {
+              const tp = PH_PTS[p.pi];
+              let bx = tp.x,
+                by = tp.y;
+              if (tp.reg === 2) by += flapSin * tp.u * 0.34;
+              const tx = compState.x + bx * phS;
+              const ty = compState.y - by * phS;
+              p.vx += (tx - p.x) * 0.05 * formC;
+              p.vy += (ty - p.y) * 0.05 * formC;
+              p.temp = Math.max(
+                p.temp,
+                (0.85 + 0.15 * Math.sin(state.t * 3 + p.seed)) * formC,
+              );
+            } else {
+              p.temp -= 0.02 * dt;
+            }
+            p.vx *= 0.9;
+            p.vy *= 0.9;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            if (p.x < -30) p.x = W + 30;
+            if (p.x > W + 30) p.x = -30;
+            if (p.y > H + 40) p.y = -30;
+            p.temp = clamp(p.temp, 0, 1);
+            const par = 0.2 + p.z * 0.8;
+            drawEmber(
+              p.x + state.cam.x * par,
+              p.y + state.cam.y * par,
+              p.r * 0.9,
+              p.temp,
+              p.vx,
+              p.vy,
+            );
+          }
+        }
+
+        function drawEmber(x, y, r, temp, vx, vy) {
+          if (temp < 0.04) return;
+          const fdim = 1 - state.fourD * 0.6; // the live fire quiets in the block-universe
+          const c = tempColor(temp);
+          const col = `${c[0] | 0},${c[1] | 0},${c[2] | 0}`;
+          const size = r * (1 + temp * 2.4);
+          const speed = Math.hypot(vx, vy);
+          if (speed > 1.1 && temp > 0.4) {
+            // hot fast embers streak like current lines
+            pctx.strokeStyle = `rgba(${col},${temp * 0.5 * fdim})`;
+            pctx.lineWidth = size * 0.8;
+            pctx.lineCap = "round";
+            pctx.beginPath();
+            pctx.moveTo(x, y);
+            pctx.lineTo(x - vx * 1.7, y - vy * 1.7);
+            pctx.stroke();
+          }
+          const g = pctx.createRadialGradient(x, y, 0, x, y, size * 4);
+          g.addColorStop(0, `rgba(${col},${(0.25 + temp * 0.7) * fdim})`);
+          g.addColorStop(1, `rgba(${col},0)`);
+          pctx.fillStyle = g;
+          pctx.beginPath();
+          pctx.arc(x, y, size * 4, 0, TAU);
+          pctx.fill();
+        }
+        function vrStroke(x, y, r, style, w) {
+          pctx.beginPath();
+          pctx.arc(x, y, r, 0, TAU);
+          pctx.strokeStyle = style;
+          pctx.lineWidth = w;
+          pctx.stroke();
+        }
+
+        function drawTrail() {
+          const m = state.mouse;
+          const vx = m.x - m.px,
+            vy = m.y - m.py,
+            sp = Math.hypot(vx, vy);
+          m.px = m.x;
+          m.py = m.y;
+          if (m.active && (sp > 0.4 || trailPts.length)) {
+            trailPts.push({ x: m.x, y: m.y });
+            if (trailPts.length > 20) trailPts.shift();
+          } else if (trailPts.length) trailPts.shift();
+          for (let i = 1; i < trailPts.length; i++) {
+            const a = trailPts[i - 1],
+              b = trailPts[i],
+              t = i / trailPts.length;
+            const c = tempColor(0.6 + t * 0.4);
+            pctx.strokeStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${t * 0.5})`;
+            pctx.lineWidth = t * 5 + 0.5;
+            pctx.lineCap = "round";
+            pctx.beginPath();
+            pctx.moveTo(a.x, a.y);
+            pctx.lineTo(b.x, b.y);
+            pctx.stroke();
+          }
+          if (m.active) {
+            const c = tempColor(0.92);
+            const g = pctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 20);
+            g.addColorStop(0, `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},.6)`);
+            g.addColorStop(1, `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},0)`);
+            pctx.fillStyle = g;
+            pctx.beginPath();
+            pctx.arc(m.x, m.y, 20, 0, TAU);
+            pctx.fill();
+          }
+        }
+
+        function composite() {
+          vctx.save();
+          vctx.setTransform(1, 0, 0, 1, 0, 0);
+          vctx.globalCompositeOperation = "source-over";
+          vctx.globalAlpha = 1;
+          vctx.clearRect(0, 0, accCv.width, accCv.height);
+          vctx.drawImage(accCv, 0, 0);
+          // ember reflection rippling on the dark water (waterline ~70% down)
+          const wlY = accCv.height * 0.7;
+          const bands = 16,
+            sliceH = (accCv.height - wlY) / bands;
+          vctx.globalCompositeOperation = "lighter";
+          for (let b = 0; b < bands; b++) {
+            const t = b / bands;
+            const off =
+              Math.sin(state.t * 1.6 + b * 0.55) * 9 * DPR * (0.3 + t);
+            vctx.globalAlpha = 0.34 * (1 - t);
+            vctx.drawImage(
+              accCv,
+              0,
+              wlY - (b + 1) * sliceH,
+              accCv.width,
+              sliceH,
+              off,
+              wlY + b * sliceH,
+              accCv.width,
+              sliceH,
+            );
+          }
+          vctx.globalAlpha = 1;
+          vctx.globalCompositeOperation = "source-over";
+          if (state.bloom > 0.02) {
+            const bw = bloomCv.width,
+              bh = bloomCv.height;
+            bctx.clearRect(0, 0, bw, bh);
+            bctx.filter = "blur(6px)";
+            bctx.globalCompositeOperation = "source-over";
+            bctx.drawImage(accCv, 0, 0, bw, bh);
+            bctx.filter = "none";
+            vctx.globalCompositeOperation = "lighter";
+            vctx.globalAlpha = clamp(
+              state.bloom * (0.85 + state.audio * 0.4 + state.heat * 0.25),
+              0,
+              1,
+            );
+            vctx.drawImage(bloomCv, 0, 0, accCv.width, accCv.height);
+          }
+          vctx.restore();
+        }
+
+        /* ---------- Bonfires: each click leaves one burning ---------- */
+        function drawBonfires(dt) {
+          for (const bf of bonfires) {
+            bf.life -= (0.016 * dt) / BONFIRE_SEC;
+            const fl = 0.6 + 0.4 * Simplex.noise(bf.seed, state.t * 2.2, 0);
+            const R = 78 * fl * Math.max(0.2, bf.life);
+            const c = tempColor(0.86);
+            const g = pctx.createRadialGradient(bf.x, bf.y, 0, bf.x, bf.y, R);
+            g.addColorStop(
+              0,
+              `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${0.5 * bf.life})`,
+            );
+            g.addColorStop(
+              0.5,
+              `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${0.18 * bf.life})`,
+            );
+            g.addColorStop(1, `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},0)`);
+            pctx.fillStyle = g;
+            pctx.beginPath();
+            pctx.arc(bf.x, bf.y, R, 0, TAU);
+            pctx.fill();
+            if (Math.random() < 0.55 * bf.life && sparks.length < 480) {
+              sparks.push({
+                x: bf.x + rand(-13, 13),
+                y: bf.y + rand(-6, 4),
+                vx: rand(-1, 1),
+                vy: -rand(2, 5.5),
+                life: rand(0.5, 1),
+                temp: 1,
+              });
+            }
+          }
+          bonfires = bonfires.filter((b) => b.life > 0);
+        }
+
+        /* ---------- Ignite / rebirth ---------- */
+        function ignite(x, y) {
+          state.clickHeat = Math.min(1.3, state.clickHeat + 1);
+          ripples.push({ x, y, rad: 4, life: 1 });
+          bonfires.push({ x, y, life: 1, seed: rand(0, 99) });
+          if (bonfires.length > BONFIRE_MAX) bonfires.shift();
+          const c = tempColor(1);
+          for (let i = 0; i < 46; i++) {
+            const a = rand(0, TAU),
+              sp = rand(1, 7);
+            sparks.push({
+              x,
+              y,
+              vx: Math.cos(a) * sp,
+              vy: Math.sin(a) * sp - rand(1, 4),
+              life: rand(0.6, 1),
+              temp: 1,
+            });
+          }
+          for (const p of particles) {
+            const dx = p.x - x,
+              dy = p.y - y,
+              d = Math.hypot(dx, dy) || 1;
+            if (d < 200) {
+              const f = 1 - d / 200;
+              p.vx += (dx / d) * f * 6;
+              p.vy += (dy / d) * f * 6 - f * 3;
+              p.temp = Math.min(1, p.temp + f);
+            }
+          }
+          audio.ignite();
+          wake();
+        }
+
+        /* ---------- Shatter: a hard strike cracks the fire apart, then it reassembles ---------- */
+        function triggerShatter(x, y) {
+          state.shatter = 1;
+          crackSeed = rand(0, 1000);
+          ripples.push({ x: cx, y: cy - H * 0.05, rad: 6, life: 1 });
+          for (const p of particles) {
+            const dx = p.x - x,
+              dy = p.y - y,
+              d = Math.hypot(dx, dy) || 1;
+            const force = rand(9, 22);
+            p.vx += (dx / d) * force + rand(-4, 4);
+            p.vy += (dy / d) * force + rand(-4, 4) - 2;
+            p.temp = 1;
+          }
+          for (let i = 0; i < 90 && sparks.length < 620; i++) {
+            const a = rand(0, TAU),
+              sp = rand(6, 18);
+            sparks.push({
+              x,
+              y,
+              vx: Math.cos(a) * sp,
+              vy: Math.sin(a) * sp,
+              life: rand(0.5, 1),
+              temp: 1,
+            });
+          }
+          audio.shatter();
+          wake();
+        }
+        function drawCracks() {
+          if (state.shatter <= 0.5) return;
+          const a = (state.shatter - 0.5) / 0.5; // bright at the instant of the strike
+          const ccx = cx,
+            ccy = cy - H * 0.05;
+          pctx.strokeStyle = `rgba(255,243,224,${a * 0.85})`;
+          const len = Math.max(W, H) * 0.62 * a;
+          for (let i = 0; i < 10; i++) {
+            const ang = (i / 10) * TAU + Math.sin(crackSeed + i) * 0.3;
+            pctx.lineWidth = a * 2 + 0.5;
+            pctx.beginPath();
+            pctx.moveTo(ccx, ccy);
+            for (let s = 1; s <= 6; s++) {
+              const t = s / 6,
+                r = len * t,
+                jit = Math.sin(crackSeed * 3 + i * 2.3 + s * 1.7) * 34 * t;
+              pctx.lineTo(
+                ccx + Math.cos(ang) * r - Math.sin(ang) * jit,
+                ccy + Math.sin(ang) * r + Math.cos(ang) * jit,
+              );
+            }
+            pctx.stroke();
+          }
+        }
+
+        /* ---------- Main loop ---------- */
+        let last = performance.now();
+        let fpsEMA = 60,
+          qChangeT = -10;
+        function loop(now) {
+          const dt = clamp((now - last) / 16.67, 0.1, 3);
+          last = now;
+          state.t += 0.016 * dt;
+          // adaptive performance: keep it smooth on any device
+          const fps = 1000 / Math.max(1, now - (loop._p || now - 16));
+          loop._p = now;
+          fpsEMA = lerp(fpsEMA, clamp(fps, 5, 120), 0.05);
+          if (state.t - qChangeT > 2.5) {
+            const target =
+              fpsEMA < 34
+                ? -0.12
+                : fpsEMA > 55 && state.perfScale < 1
+                  ? 0.08
+                  : 0;
+            if (target !== 0) {
+              state.perfScale = clamp(state.perfScale + target, 0.55, 1);
+              GL.resizeGL();
+              qChangeT = state.t;
+            }
+          }
+          state.audio = lerp(
+            state.audio,
+            audio.level(),
+            clamp(0.12 * dt, 0, 1),
+          );
+          // breath / microphone feeds the fire
+          state.mic = lerp(state.mic, mic.level(), clamp(0.25 * dt, 0, 1));
+          if (state.mic > 0.02)
+            state.clickHeat = Math.max(state.clickHeat, state.mic * 1.1);
+          // ===== TIME flows at timeScale — rewind, freeze, or race forward =====
+          const ts = state.scrub ? 0 : state.timeScale;
+          // the wormhole opens when time strays far from "now"
+          const travelling = state.scrub || Math.abs(ts - 1) > 0.5;
+          state.warp = lerp(
+            state.warp,
+            travelling
+              ? clamp(Math.abs(ts - 1) * 0.5 + (state.scrub ? 1 : 0.4), 0, 1)
+              : 0,
+            clamp(0.08 * dt, 0, 1),
+          );
+          const dirTarget = state.scrub ? state.timeDir : ts < 0 ? -1 : 1;
+          state.timeDir = lerp(
+            state.timeDir,
+            dirTarget,
+            clamp(0.06 * dt, 0, 1),
+          );
+          // block-universe view eases in and out
+          state.fourD = lerp(
+            state.fourD,
+            state.fourDOn ? 1 : 0,
+            clamp(0.05 * dt, 0, 1),
+          );
+
+          // advance the eternal cycle (can run backward)
+          state.lifeT += 0.016 * dt * ts;
+          if (state.lifeT < 0) state.lifeT += state.cycle * 1000; // keep positive for modulo
+          state.life = (state.lifeT / state.cycle) % 1;
+          state.heat = kf(HEAT, state.life);
+          state.clickHeat = Math.max(0, state.clickHeat - 0.012 * dt);
+          const form = kf(FORM, state.life);
+
+          // slow day↔night breath of the sky (also travels with time)
+          state.dayT += 0.016 * dt * ts;
+          state.day =
+            0.5 + 0.5 * Math.sin((state.dayT / state.dayPeriod) * TAU);
+          // shatter decays as the fire reassembles
+          state.shatter = Math.max(0, state.shatter - (0.016 * dt) / 2.4);
+          // rain rolls in and out
+          state.rain = lerp(
+            state.rain,
+            state.rainOn ? 1 : 0,
+            clamp(0.02 * dt, 0, 1),
+          );
+          // the sky-phoenix slowly draws itself in at night
+          const nightNow = clamp((0.42 - state.day) / 0.42, 0, 1);
+          state.constel = lerp(
+            state.constel,
+            nightNow > 0.1 ? 1 : 0,
+            clamp(0.01 * dt, 0, 1),
+          );
+
+          // guided journey — a hands-free contemplative arc
+          if (state.journey) {
+            state.journeyT += 0.016 * dt;
+            const jt = state.journeyT;
+            if (!jBonfire && jt > 55) {
+              jBonfire = true;
+              bonfires.push({
+                x: cx + W * 0.22,
+                y: cy + H * 0.06,
+                life: 1,
+                seed: rand(0, 99),
+              });
+            }
+            if (jt > 165 && jt < 195) state.rainOn = true;
+            else if (jBonfire && jt >= 195) state.rainOn = false;
+            if (jt > 300) stopJourney();
+          }
+
+          // wing-flap — slow at rest, faster as the phoenix rises
+          const prevFlapSin = Math.sin(state.flap);
+          state.flap += 0.016 * dt * (1.4 + form * 2.2);
+          const flapSin = Math.sin(state.flap);
+          if (form > 0.4 && prevFlapSin > 0 && flapSin <= 0) audio.whoosh(); // top of downstroke
+
+          // drifting parallax camera (gentle autonomous drift + subtle mouse lean)
+          const mxN = state.mouse.x / W - 0.5,
+            myN = state.mouse.y / H - 0.5;
+          const tgX = Math.sin(state.t * 0.07) * 26 - mxN * 46;
+          const tgY = Math.cos(state.t * 0.053) * 18 - myN * 30;
+          state.cam.x = lerp(state.cam.x, tgX, clamp(0.03 * dt, 0, 1));
+          state.cam.y = lerp(state.cam.y, tgY, clamp(0.03 * dt, 0, 1));
+
+          // core glow follows the fire's heat + parallax lean
+          const H2 = clamp(state.heat + state.clickHeat, 0, 1.3);
+          orb.style.filter = `brightness(${0.55 + H2 * 0.9}) saturate(${0.9 + H2 * 0.4})`;
+          core.style.transform = `translate(calc(-50% + ${state.cam.x * 0.5}px), calc(-50% + ${state.cam.y * 0.5}px))`;
+          // phase label
+          const pw = phaseWord(state.life);
+          if ($("#phase").textContent !== pw) {
+            $("#phase").textContent = pw;
+            if (!state.scrub && Math.abs(state.timeScale - 1) < 0.1)
+              showVerse(pw);
+          }
+          // keep the time scrubber & label in step with the travelling now
+          if (timebarOpen) {
+            if (!state.scrub)
+              scrubEl.value = ((state.life * 1000) | 0).toString();
+            const lbl = state.scrub
+              ? pw
+              : state.timeScale < 0
+                ? "rewind"
+                : state.timeScale === 0
+                  ? "frozen"
+                  : state.timeScale > 1
+                    ? "fast-forward"
+                    : "now";
+            if (timeLabelEl.textContent !== lbl) timeLabelEl.textContent = lbl;
+          }
+
+          if (state.glOK) GL.render();
+          sctx.clearRect(0, 0, W, H); // 2D scene layer unused (shader paints base) — kept transparent
+          drawEmbers(dt);
+          updateBreath(now);
+          requestAnimationFrame(loop);
+        }
+
+        /* ---------- Interaction: stir · light · drag bonfires ---------- */
+        function setMouse(x, y) {
+          state.mouse.x = x;
+          state.mouse.y = y;
+          state.mouse.active = true;
+          wake();
+        }
+        let dragBF = null,
+          downX = 0,
+          downY = 0,
+          pressValid = false,
+          lastTap = -1;
+        function grabBonfire(x, y) {
+          let best = null,
+            bd = 58;
+          for (const bf of bonfires) {
+            const d = Math.hypot(bf.x - x, bf.y - y);
+            if (d < bd) {
+              bd = d;
+              best = bf;
+            }
+          }
+          return best;
+        }
+        function isUI(t) {
+          return t && t.closest && t.closest(".dock,.panel,.btn,select,input");
+        }
+        function ptrDown(x, y, t) {
+          if (isUI(t)) {
+            pressValid = false;
+            return;
+          }
+          if (state.journey) {
+            stopJourney();
+            pressValid = false;
+            return;
+          }
+          pressValid = true;
+          downX = x;
+          downY = y;
+          dragBF = grabBonfire(x, y); // grab an existing fire, or start a tap
+          wake();
+        }
+        function ptrMove(x, y) {
+          setMouse(x, y);
+          if (dragBF) {
+            dragBF.x = x;
+            dragBF.y = y;
+            dragBF.life = Math.min(1, dragBF.life + 0.004); // tending it feeds it
+          } else {
+            document.body.style.cursor = grabBonfire(x, y) ? "grab" : "";
+          }
+        }
+        function ptrUp(x, y) {
+          if (dragBF) {
+            dragBF = null;
+            return;
+          }
+          if (pressValid && Math.hypot(x - downX, y - downY) < 8) {
+            if (state.t - lastTap < 0.35)
+              triggerShatter(x, y); // a hard double-strike shatters the fire
+            else ignite(x, y); // a tap lights a new fire
+            lastTap = state.t;
+          }
+          pressValid = false;
+        }
+        addEventListener("mousedown", (e) =>
+          ptrDown(e.clientX, e.clientY, e.target),
+        );
+        addEventListener("mousemove", (e) => ptrMove(e.clientX, e.clientY));
+        addEventListener("mouseup", (e) => ptrUp(e.clientX, e.clientY));
+        addEventListener("mouseleave", () => (state.mouse.active = false));
+        addEventListener(
+          "touchstart",
+          (e) => {
+            const t = e.touches[0];
+            if (t) ptrDown(t.clientX, t.clientY, e.target);
+          },
+          { passive: true },
+        );
+        addEventListener(
+          "touchmove",
+          (e) => {
+            const t = e.touches[0];
+            if (t) ptrMove(t.clientX, t.clientY);
+          },
+          { passive: true },
+        );
+        addEventListener("touchend", (e) => {
+          const t = e.changedTouches[0];
+          if (t) ptrUp(t.clientX, t.clientY);
+        });
+
+        /* ---------- Idle fade ---------- */
+        let idleTimer = null;
+        function wake() {
+          document.body.classList.remove("idle");
+          clearTimeout(idleTimer);
+          idleTimer = setTimeout(
+            () => document.body.classList.add("idle"),
+            4500,
+          );
+        }
+        wake();
+
+        /* ---------- Breathing ---------- */
+        const core = $("#core"),
+          orb = $("#orb"),
+          ring1 = $("#ring1"),
+          ring2 = $("#ring2"),
+          ring3 = $("#ring3");
+        const corePhaseEl = $("#corePhase"),
+          coreCountEl = $("#coreCount"),
+          coreTextEl = $("#coreText");
+        const breath = {
+          on: false,
+          pattern: [4, 7, 8, 0],
+          phase: 0,
+          phaseStart: 0,
+        };
+        const PH = ["Breathe in", "Hold", "Breathe out", "Hold"];
+        const parse = (s) => s.split("-").map(Number);
+        function startBreath() {
+          breath.on = true;
+          breath.pattern = parse($("#breathPattern").value);
+          breath.phase = 0;
+          breath.phaseStart = performance.now();
+          coreTextEl.style.opacity = 1;
+          $("#breathBtn").classList.add("active");
+        }
+        function stopBreath() {
+          breath.on = false;
+          corePhaseEl.textContent = "tap breathe to begin";
+          coreCountEl.textContent = "";
+          $("#breathBtn").classList.remove("active");
+        }
+        function setOrb(scale) {
+          orb.style.transform = `scale(${scale})`;
+          ring1.style.transform = `scale(${scale * 1.08})`;
+          ring1.style.opacity = 0.45;
+          ring2.style.transform = `scale(${scale * 1.2})`;
+          ring2.style.opacity = 0.28;
+          ring3.style.transform = `scale(${scale * 1.34})`;
+          ring3.style.opacity = 0.16;
+        }
+        function updateBreath(now) {
+          if (!breath.on) {
+            setOrb(1 + Math.sin(state.t * 0.6) * 0.03 + state.heat * 0.08);
+            return;
+          }
+          let dur = breath.pattern[breath.phase],
+            g = 0;
+          while (dur === 0 && g < 4) {
+            breath.phase = (breath.phase + 1) % 4;
+            breath.phaseStart = now;
+            dur = breath.pattern[breath.phase];
+            g++;
+          }
+          const el = (now - breath.phaseStart) / 1000,
+            prog = clamp(el / dur, 0, 1),
+            remain = Math.ceil(dur - el);
+          let scale;
+          if (breath.phase === 0) scale = lerp(1, 1.5, easeIO(prog));
+          else if (breath.phase === 1) scale = 1.5;
+          else if (breath.phase === 2) scale = lerp(1.5, 1, easeIO(prog));
+          else scale = 1;
+          setOrb(scale + state.heat * 0.08);
+          corePhaseEl.textContent = PH[breath.phase];
+          coreCountEl.textContent = remain > 0 ? remain : "";
+          if (prog >= 1) {
+            breath.phase = (breath.phase + 1) % 4;
+            breath.phaseStart = now;
+            if (breath.phase === 0) audio.breathCue("in");
+            if (breath.phase === 2) audio.breathCue("out");
+          }
+        }
+
+        /* ---------- Focus timer ---------- */
+        const timer = { on: false, total: 1500, left: 1500, lastTick: 0 };
+        const tDisp = $("#timerDisplay"),
+          tLabel = $("#timerLabel");
+        const fmt = (s) => {
+          const m = Math.floor(s / 60),
+            ss = s % 60;
+          return `${m}:${String(ss).padStart(2, "0")}`;
+        };
+        function startTimer() {
+          timer.total = parseInt($("#focusLen").value) * 60;
+          timer.left = timer.total;
+          timer.on = true;
+          timer.lastTick = performance.now();
+          tDisp.classList.add("show");
+          tLabel.classList.add("show");
+          tLabel.textContent = "focus session";
+          tDisp.textContent = fmt(timer.left);
+          $("#timerBtn").classList.add("active");
+          coreTextEl.style.opacity = breath.on ? 1 : 0;
+          tick();
+        }
+        function stopTimer() {
+          timer.on = false;
+          tDisp.classList.remove("show");
+          tLabel.classList.remove("show");
+          $("#timerBtn").classList.remove("active");
+          if (!breath.on) coreTextEl.style.opacity = 1;
+        }
+        function tick() {
+          if (!timer.on) return;
+          const now = performance.now();
+          if (now - timer.lastTick >= 1000) {
+            timer.lastTick = now;
+            timer.left--;
+            tDisp.textContent = fmt(Math.max(0, timer.left));
+            if (timer.left <= 0) {
+              audio.bell();
+              tLabel.textContent = "session complete";
+              setTimeout(stopTimer, 6000);
+              return;
+            }
+          }
+          requestAnimationFrame(tick);
+        }
+
+        /* ---------- Audio (generative, no files) ---------- */
+        const audio = (() => {
+          let ctx = null,
+            master = null,
+            masterTarget = 0.55,
+            analyser = null,
+            freqData = null;
+          const layers = {};
+          let noiseBuf = null;
+          function ensure() {
+            if (ctx) return;
+            ctx = new (window.AudioContext || window.webkitAudioContext)();
+            master = ctx.createGain();
+            master.gain.value = masterTarget;
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.8;
+            freqData = new Uint8Array(analyser.frequencyBinCount);
+            master.connect(analyser);
+            master.connect(ctx.destination);
+          }
+          function resume() {
+            if (ctx && ctx.state === "suspended") ctx.resume();
+          }
+          function noise() {
+            if (!noiseBuf) {
+              noiseBuf = ctx.createBuffer(
+                1,
+                ctx.sampleRate * 4,
+                ctx.sampleRate,
+              );
+              const d = noiseBuf.getChannelData(0);
+              for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+            }
+            const s = ctx.createBufferSource();
+            s.buffer = noiseBuf;
+            s.loop = true;
+            return s;
+          }
+          function bell(freq, vol, dest) {
+            const o = ctx.createOscillator();
+            o.type = "sine";
+            o.frequency.value = freq;
+            const o2 = ctx.createOscillator();
+            o2.type = "sine";
+            o2.frequency.value = freq * 2.01;
+            const g = ctx.createGain();
+            g.gain.value = 0;
+            const o2g = ctx.createGain();
+            o2g.gain.value = 0.3;
+            o.connect(g);
+            o2.connect(o2g);
+            o2g.connect(g);
+            g.connect(dest || master);
+            const t = ctx.currentTime;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(vol, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 3.5);
+            o.start(t);
+            o2.start(t);
+            o.stop(t + 3.6);
+            o2.stop(t + 3.6);
+          }
+          function makePad() {
+            const g = ctx.createGain();
+            g.gain.value = 0;
+            const f = ctx.createBiquadFilter();
+            f.type = "lowpass";
+            f.frequency.value = 520;
+            f.Q.value = 4;
+            f.connect(g);
+            g.connect(master);
+            const fr = [82, 110, 165, 220],
+              os = [];
+            fr.forEach((x, i) => {
+              const o = ctx.createOscillator();
+              o.type = i % 2 ? "sine" : "triangle";
+              o.frequency.value = x;
+              o.detune.value = rand(-8, 8);
+              const og = ctx.createGain();
+              og.gain.value = 0.25 / fr.length;
+              o.connect(og);
+              og.connect(f);
+              o.start();
+              os.push(o);
+            });
+            const lfo = ctx.createOscillator();
+            lfo.frequency.value = 0.05;
+            const lg = ctx.createGain();
+            lg.gain.value = 340;
+            lfo.connect(lg);
+            lg.connect(f.frequency);
+            lfo.start();
+            g.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 3);
+            return {
+              stop() {
+                g.gain.linearRampToValueAtTime(0, ctx.currentTime + 2);
+                setTimeout(() => {
+                  os.forEach((o) => o.stop());
+                  lfo.stop();
+                }, 2200);
+              },
+            };
+          }
+          function makeRain() {
+            const g = ctx.createGain();
+            g.gain.value = 0; // crackle
+            const hp = ctx.createBiquadFilter();
+            hp.type = "highpass";
+            hp.frequency.value = 1500;
+            const lp = ctx.createBiquadFilter();
+            lp.type = "lowpass";
+            lp.frequency.value = 7000;
+            const n = noise();
+            n.connect(hp);
+            hp.connect(lp);
+            lp.connect(g);
+            g.connect(master);
+            n.start();
+            g.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 2);
+            return {
+              stop() {
+                g.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.5);
+                setTimeout(() => n.stop(), 1700);
+              },
+            };
+          }
+          function makeOcean() {
+            const g = ctx.createGain();
+            g.gain.value = 0; // currents
+            const lp = ctx.createBiquadFilter();
+            lp.type = "lowpass";
+            lp.frequency.value = 480;
+            lp.Q.value = 1.5;
+            const sw = ctx.createGain();
+            sw.gain.value = 0.5;
+            const n = noise();
+            n.connect(lp);
+            lp.connect(sw);
+            sw.connect(g);
+            g.connect(master);
+            n.start();
+            const lfo = ctx.createOscillator();
+            lfo.frequency.value = 0.09;
+            const lg = ctx.createGain();
+            lg.gain.value = 0.35;
+            lfo.connect(lg);
+            lg.connect(sw.gain);
+            lfo.start();
+            g.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 2.5);
+            return {
+              stop() {
+                g.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.8);
+                setTimeout(() => {
+                  n.stop();
+                  lfo.stop();
+                }, 2000);
+              },
+            };
+          }
+          function makeChimes() {
+            const g = ctx.createGain();
+            g.gain.value = 0;
+            g.connect(master);
+            g.gain.linearRampToValueAtTime(1, ctx.currentTime + 1);
+            const sc = [392, 466.16, 587.33, 698.46, 880];
+            let id;
+            function ping() {
+              const f =
+                sc[Math.floor(Math.random() * sc.length)] *
+                (Math.random() < 0.3 ? 0.5 : 1);
+              bell(f, 0.1, g);
+              id = setTimeout(ping, rand(2000, 5500));
+            }
+            id = setTimeout(ping, 800);
+            return {
+              stop() {
+                clearTimeout(id);
+                g.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
+              },
+            };
+          }
+          const builders = {
+            pad: makePad,
+            rain: makeRain,
+            ocean: makeOcean,
+            chimes: makeChimes,
+          };
+          return {
+            toggle(n) {
+              ensure();
+              resume();
+              if (layers[n]) {
+                layers[n].stop();
+                delete layers[n];
+                return false;
+              }
+              layers[n] = builders[n]();
+              return true;
+            },
+            isOn(n) {
+              return !!layers[n];
+            },
+            anyOn() {
+              return Object.keys(layers).length > 0;
+            },
+            level() {
+              if (!analyser) return 0;
+              analyser.getByteFrequencyData(freqData);
+              let s = 0,
+                n = Math.min(freqData.length, 48);
+              for (let i = 0; i < n; i++) s += freqData[i];
+              return Math.min(1, s / n / 180);
+            },
+            setMaster(v) {
+              masterTarget = v;
+              if (master)
+                master.gain.linearRampToValueAtTime(
+                  v,
+                  (ctx.currentTime || 0) + 0.2,
+                );
+            },
+            bell() {
+              ensure();
+              resume();
+              bell(528, 0.18, master);
+              setTimeout(() => bell(396, 0.14, master), 700);
+            },
+            ignite() {
+              ensure();
+              resume();
+              if (!ctx) return;
+              const n = noise(),
+                bp = ctx.createBiquadFilter();
+              bp.type = "bandpass";
+              bp.Q.value = 0.7;
+              const g = ctx.createGain();
+              g.gain.value = 0;
+              n.connect(bp);
+              bp.connect(g);
+              g.connect(master);
+              n.start();
+              const t = ctx.currentTime;
+              bp.frequency.setValueAtTime(380, t);
+              bp.frequency.exponentialRampToValueAtTime(2600, t + 0.5);
+              g.gain.linearRampToValueAtTime(0.22, t + 0.05);
+              g.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+              n.stop(t + 1);
+              const o = ctx.createOscillator();
+              o.type = "sine";
+              o.frequency.setValueAtTime(130, t);
+              o.frequency.exponentialRampToValueAtTime(48, t + 0.6);
+              const og = ctx.createGain();
+              og.gain.value = 0;
+              o.connect(og);
+              og.connect(master);
+              og.gain.linearRampToValueAtTime(0.18, t + 0.04);
+              og.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+              o.start(t);
+              o.stop(t + 0.8);
+            },
+            whoosh() {
+              // soft airy wing-beat — only audible when the mix is running
+              if (!ctx || !master) return;
+              const n = noise(),
+                bp = ctx.createBiquadFilter();
+              bp.type = "bandpass";
+              bp.Q.value = 0.5;
+              const g = ctx.createGain();
+              g.gain.value = 0;
+              n.connect(bp);
+              bp.connect(g);
+              g.connect(master);
+              n.start();
+              const t = ctx.currentTime;
+              bp.frequency.setValueAtTime(220, t);
+              bp.frequency.exponentialRampToValueAtTime(90, t + 0.45);
+              g.gain.linearRampToValueAtTime(0.05, t + 0.12);
+              g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+              n.stop(t + 0.7);
+            },
+            shatter() {
+              // sharp crack over a deep boom
+              ensure();
+              resume();
+              if (!ctx) return;
+              const t = ctx.currentTime;
+              const n = noise(),
+                hp = ctx.createBiquadFilter();
+              hp.type = "highpass";
+              hp.frequency.value = 1100;
+              const cg = ctx.createGain();
+              cg.gain.value = 0;
+              n.connect(hp);
+              hp.connect(cg);
+              cg.connect(master);
+              n.start();
+              cg.gain.setValueAtTime(0.4, t);
+              cg.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+              n.stop(t + 0.3);
+              const o = ctx.createOscillator();
+              o.type = "sine";
+              o.frequency.setValueAtTime(95, t);
+              o.frequency.exponentialRampToValueAtTime(30, t + 1.0);
+              const og = ctx.createGain();
+              og.gain.value = 0;
+              o.connect(og);
+              og.connect(master);
+              og.gain.linearRampToValueAtTime(0.32, t + 0.03);
+              og.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+              o.start(t);
+              o.stop(t + 1.5);
+            },
+            rainHiss(on) {
+              ensure();
+              resume();
+              if (!ctx) return;
+              if (on) {
+                if (layers.storm) return;
+                const n = noise(),
+                  hp = ctx.createBiquadFilter();
+                hp.type = "highpass";
+                hp.frequency.value = 1400;
+                const lp = ctx.createBiquadFilter();
+                lp.type = "lowpass";
+                lp.frequency.value = 8000;
+                const g = ctx.createGain();
+                g.gain.value = 0;
+                n.connect(hp);
+                hp.connect(lp);
+                lp.connect(g);
+                g.connect(master);
+                n.start();
+                g.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 2);
+                layers.storm = {
+                  stop() {
+                    g.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.5);
+                    setTimeout(() => n.stop(), 1700);
+                  },
+                };
+              } else if (layers.storm) {
+                layers.storm.stop();
+                delete layers.storm;
+              }
+            },
+            union() {
+              // a soft major chord when the two phoenixes embrace
+              if (!ctx || !master) return;
+              const t = ctx.currentTime;
+              [528, 660, 792].forEach((f, i) => {
+                const o = ctx.createOscillator();
+                o.type = "sine";
+                o.frequency.value = f;
+                const g = ctx.createGain();
+                g.gain.value = 0;
+                o.connect(g);
+                g.connect(master);
+                g.gain.linearRampToValueAtTime(0.06, t + 0.05 + i * 0.04);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
+                o.start(t);
+                o.stop(t + 2.5);
+              });
+            },
+            breathCue(dir) {
+              if (!ctx || !master) return;
+              const f = dir === "in" ? 330 : 262;
+              const o = ctx.createOscillator();
+              o.type = "sine";
+              o.frequency.value = f;
+              const g = ctx.createGain();
+              g.gain.value = 0;
+              o.connect(g);
+              g.connect(master);
+              const t = ctx.currentTime;
+              g.gain.linearRampToValueAtTime(0.05, t + 0.4);
+              g.gain.linearRampToValueAtTime(0, t + 1.4);
+              o.start(t);
+              o.stop(t + 1.5);
+            },
+          };
+        })();
+
+        /* ---------- Microphone: breathe / blow / play music into the fire ---------- */
+        const mic = (() => {
+          let actx = null,
+            analyser = null,
+            data = null,
+            stream = null,
+            on = false,
+            base = 0;
+          async function start() {
+            if (on) return true;
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                  echoCancellation: false,
+                  noiseSuppression: false,
+                  autoGainControl: false,
+                },
+              });
+            } catch (e) {
+              return false;
+            }
+            actx = new (window.AudioContext || window.webkitAudioContext)();
+            const src = actx.createMediaStreamSource(stream);
+            analyser = actx.createAnalyser();
+            analyser.fftSize = 512;
+            data = new Uint8Array(analyser.frequencyBinCount);
+            src.connect(analyser);
+            base = 0;
+            on = true;
+            return true;
+          }
+          function stop() {
+            on = false;
+            if (stream) stream.getTracks().forEach((t) => t.stop());
+            if (actx) actx.close();
+            actx = analyser = stream = null;
+          }
+          return {
+            isOn() {
+              return on;
+            },
+            async toggle() {
+              if (on) {
+                stop();
+                return false;
+              }
+              return await start();
+            },
+            level() {
+              if (!on || !analyser) return 0;
+              analyser.getByteFrequencyData(data);
+              let s = 0;
+              for (let i = 0; i < data.length; i++) s += data[i];
+              const avg = s / data.length / 255;
+              base = base ? base * 0.995 + avg * 0.005 : avg; // adapt to room noise
+              return clamp((avg - base) * 3.2, 0, 1); // breath/blow above the floor
+            },
+          };
+        })();
+
+        /* ---------- UI wiring ---------- */
+        function toggleRain() {
+          state.rainOn = !state.rainOn;
+          $("#rainBtn").classList.toggle("active", state.rainOn);
+          audio.rainHiss(state.rainOn);
+        }
+        $("#rainBtn").addEventListener("click", toggleRain);
+        $("#rebirthBtn").addEventListener("click", () =>
+          ignite(cx, cy - H * 0.05),
+        );
+        $("#breathBtn").addEventListener("click", () =>
+          breath.on ? stopBreath() : startBreath(),
+        );
+        $("#timerBtn").addEventListener("click", () =>
+          timer.on ? stopTimer() : startTimer(),
+        );
+        $("#soundBtn").addEventListener("click", () => {
+          if (!audio.anyOn()) {
+            audio.toggle("pad");
+            syncSound();
+            $("#soundBtn").classList.add("active");
+            $("#panel").classList.add("open");
+          } else {
+            ["pad", "rain", "ocean", "chimes"].forEach((s) => {
+              if (audio.isOn(s)) audio.toggle(s);
+            });
+            syncSound();
+            $("#soundBtn").classList.remove("active");
+          }
+        });
+        // Breath / microphone
+        $("#micBtn").addEventListener("click", async () => {
+          const okMic = await mic.toggle();
+          state.micOn = mic.isOn();
+          $("#micBtn").classList.toggle("active", state.micOn);
+          if (!okMic && !state.micOn)
+            flashHint("microphone unavailable — allow access and retry");
+        });
+
+        // The Let-Go ritual
+        function openRitual() {
+          $("#ritual").classList.add("open");
+          setTimeout(() => $("#ritualInput").focus(), 120);
+        }
+        function closeRitual() {
+          $("#ritual").classList.remove("open");
+          $("#ritualInput").blur();
+        }
+        function burnIntention(text) {
+          closeRitual();
+          const t = (text || "").trim();
+          const el = $("#burnText");
+          el.textContent = t || "I let this go";
+          el.classList.remove("burning");
+          void el.offsetWidth; // restart the animation
+          el.classList.add("burning");
+          // after the words ignite, they rise as embers and feed the fire
+          setTimeout(() => {
+            state.clickHeat = Math.min(1.3, state.clickHeat + 0.7);
+            const bx = cx,
+              by = H * 0.34;
+            for (let i = 0; i < 70 && sparks.length < 640; i++) {
+              const a = rand(0, TAU);
+              sparks.push({
+                x: bx + rand(-160, 160),
+                y: by + rand(-20, 20),
+                vx: Math.cos(a) * rand(0.5, 2),
+                vy: -rand(2, 6),
+                life: rand(0.6, 1),
+                temp: 1,
+              });
+            }
+            ripples.push({ x: bx, y: by, rad: 6, life: 1 });
+            audio.union();
+            const el2 = $("#verse");
+            el2.textContent = "let the old self burn away";
+            el2.style.opacity = 0.9;
+            setTimeout(() => (el2.style.opacity = 0), 5000);
+          }, 1400);
+        }
+        $("#letgoBtn").addEventListener("click", openRitual);
+        $("#ritualBurn").addEventListener("click", () =>
+          burnIntention($("#ritualInput").value),
+        );
+        $("#ritualCancel").addEventListener("click", closeRitual);
+        $("#ritualInput").addEventListener("keydown", (e) => {
+          if (e.key === "Enter") burnIntention(e.target.value);
+          else if (e.key === "Escape") closeRitual();
+          e.stopPropagation();
+        });
+
+        // Guided journey
+        let journeyPrev = null,
+          jBonfire = false;
+        function startJourney() {
+          if (state.journey) return;
+          state.journey = true;
+          state.journeyT = 0;
+          jBonfire = false;
+          $("#journeyBtn").classList.add("active");
+          document.body.classList.add("cinema");
+          journeyPrev = { cycle: state.cycle, dayPeriod: state.dayPeriod };
+          state.cycle = 34;
+          state.dayPeriod = 150;
+          if (!breath.on) startBreath();
+          const v = $("#verse");
+          v.textContent = "be still — and watch yourself rise";
+          v.style.opacity = 0.9;
+          setTimeout(() => (v.style.opacity = 0), 6000);
+        }
+        function stopJourney() {
+          if (!state.journey) return;
+          state.journey = false;
+          $("#journeyBtn").classList.remove("active");
+          document.body.classList.remove("cinema");
+          if (journeyPrev) {
+            state.cycle = journeyPrev.cycle;
+            state.dayPeriod = journeyPrev.dayPeriod;
+          }
+        }
+        function toggleJourney() {
+          state.journey ? stopJourney() : startJourney();
+        }
+        $("#journeyBtn").addEventListener("click", toggleJourney);
+
+        // The time machine
+        let timebarOpen = false;
+        const scrubEl = $("#scrub"),
+          timeLabelEl = $("#timeLabel");
+        function setTimeScale(ts) {
+          state.timeScale = ts;
+          document
+            .querySelectorAll(".tbtn")
+            .forEach((b) => b.classList.toggle("active", +b.dataset.ts === ts));
+        }
+        $("#timeBtn").addEventListener("click", () => {
+          timebarOpen = $("#timebar").classList.toggle("open");
+          $("#timeBtn").classList.toggle("active", timebarOpen);
+        });
+        document
+          .querySelectorAll(".tbtn")
+          .forEach((b) =>
+            b.addEventListener("click", () => setTimeScale(+b.dataset.ts)),
+          );
+        const scrub = scrubEl;
+        scrub.addEventListener("input", () => {
+          const prev = state.life * state.cycle;
+          const target = (scrub.value / 1000) * state.cycle;
+          state.timeDir = target < prev ? -1 : 1;
+          state.scrub = true;
+          state.lifeT = target;
+        });
+        const endScrub = () => {
+          state.scrub = false;
+        };
+        scrub.addEventListener("change", endScrub);
+        scrub.addEventListener("pointerup", endScrub);
+        scrub.addEventListener("pointercancel", endScrub);
+
+        // The 4D block-universe view
+        function toggleFourD() {
+          state.fourDOn = !state.fourDOn;
+          $("#fourdBtn").classList.toggle("active", state.fourDOn);
+          if (state.fourDOn)
+            flashHint("the block universe — past ← now → future, all at once");
+        }
+        $("#fourdBtn").addEventListener("click", toggleFourD);
+
+        function flashHint(msg) {
+          const h = $("#hint");
+          h.textContent = msg;
+          h.style.opacity = 0.85;
+          clearTimeout(flashHint._t);
+          flashHint._t = setTimeout(() => (h.style.opacity = 0), 4000);
+        }
+
+        $("#settingsBtn").addEventListener("click", () =>
+          $("#panel").classList.toggle("open"),
+        );
+        $("#closePanel").addEventListener("click", () =>
+          $("#panel").classList.remove("open"),
+        );
+        document.querySelectorAll(".sound-pill").forEach((p) =>
+          p.addEventListener("click", () => {
+            audio.toggle(p.dataset.sound);
+            syncSound();
+            $("#soundBtn").classList.toggle("active", audio.anyOn());
+          }),
+        );
+        function syncSound() {
+          document.querySelectorAll(".sound-pill").forEach((p) => {
+            const on = audio.isOn(p.dataset.sound);
+            p.classList.toggle("active", on);
+            p.querySelector(".lvl").textContent = on ? "on" : "off";
+          });
+        }
+
+        $("#masterVol").addEventListener("input", (e) =>
+          audio.setMaster(e.target.value / 100),
+        );
+        $("#motionInt").addEventListener(
+          "input",
+          (e) => (state.motion = e.target.value / 100),
+        );
+        $("#density").addEventListener("input", (e) => {
+          state.density = e.target.value / 100;
+          initParticles();
+        });
+        $("#trail").addEventListener(
+          "input",
+          (e) => (state.trail = +e.target.value),
+        );
+        $("#bloom").addEventListener(
+          "input",
+          (e) => (state.bloom = e.target.value / 100),
+        );
+        $("#cycle").addEventListener("input", (e) => {
+          state.cycle = +e.target.value;
+          $("#cycleVal").textContent = e.target.value;
+        });
+        $("#dayLen").addEventListener("input", (e) => {
+          state.dayPeriod = +e.target.value;
+          $("#dayVal").textContent = e.target.value;
+        });
+        $("#focusLen").addEventListener(
+          "input",
+          (e) => ($("#focusLenVal").textContent = e.target.value),
+        );
+
+        $("#fsBtn").addEventListener("click", toggleFS);
+        function toggleFS() {
+          if (!document.fullscreenElement)
+            document.documentElement.requestFullscreen?.();
+          else document.exitFullscreen?.();
+        }
+
+        addEventListener("keydown", (e) => {
+          if (e.target.matches("input,select")) return;
+          if (
+            state.journey &&
+            e.key !== "Escape" &&
+            e.key !== "j" &&
+            e.key !== "J"
+          ) {
+            stopJourney();
+            return;
+          }
+          if (e.code === "Space") {
+            e.preventDefault();
+            breath.on ? stopBreath() : startBreath();
+          } else if (e.key === "r" || e.key === "R") ignite(cx, cy - H * 0.05);
+          else if (e.key === "x" || e.key === "X")
+            triggerShatter(cx, cy - H * 0.05);
+          else if (e.key === "n" || e.key === "N") toggleRain();
+          else if (e.key === "l" || e.key === "L") openRitual();
+          else if (e.key === "j" || e.key === "J") toggleJourney();
+          else if (e.key === "m" || e.key === "M") $("#micBtn").click();
+          else if (e.key === "d" || e.key === "D") toggleFourD();
+          else if (e.key === "c" || e.key === "C")
+            document.body.classList.toggle("cinema");
+          else if (e.key === "t" || e.key === "T")
+            timer.on ? stopTimer() : startTimer();
+          else if (e.key === "f" || e.key === "F") toggleFS();
+          else if (e.key === "s" || e.key === "S")
+            $("#panel").classList.toggle("open");
+          else if (e.key === "Escape") {
+            $("#panel").classList.remove("open");
+            closeRitual();
+            if (state.journey) stopJourney();
+          }
+          wake();
+        });
+
+        /* ---------- Remember the user's settings ---------- */
+        const SAVE_IDS = [
+          "masterVol",
+          "breathPattern",
+          "focusLen",
+          "motionInt",
+          "density",
+          "trail",
+          "bloom",
+          "cycle",
+          "dayLen",
+        ];
+        function saveSettings() {
+          try {
+            const o = {};
+            SAVE_IDS.forEach((id) => (o[id] = $("#" + id).value));
+            localStorage.setItem("phoenix.settings", JSON.stringify(o));
+          } catch (e) {}
+        }
+        function loadSettings() {
+          try {
+            const o = JSON.parse(
+              localStorage.getItem("phoenix.settings") || "{}",
+            );
+            SAVE_IDS.forEach((id) => {
+              if (o[id] != null) {
+                const el = $("#" + id);
+                el.value = o[id];
+                el.dispatchEvent(new Event("input", { bubbles: true }));
+              }
+            });
+          } catch (e) {}
+        }
+        $("#panel").addEventListener("input", saveSettings);
+
+        /* ---------- Boot ---------- */
+        state.glOK = GL.init();
+        loadSettings();
+        resize();
+        requestAnimationFrame(loop);
+        setTimeout(() => ($("#hint").style.opacity = 0), 12000);
+      })();
+    </script>
+  </body>
+</html>
