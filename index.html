@@ -1190,6 +1190,23 @@
           <circle cx="12" cy="13" r="3.5" />
         </svg>
       </button>
+      <button
+        class="btn icon-btn"
+        id="shareBtn"
+        title="Copy a link to this exact moment"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <circle cx="18" cy="5" r="2.5" />
+          <circle cx="6" cy="12" r="2.5" />
+          <circle cx="18" cy="19" r="2.5" />
+          <path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6" />
+        </svg>
+      </button>
       <button class="btn icon-btn" id="settingsBtn">
         <svg
           viewBox="0 0 24 24"
@@ -1667,6 +1684,7 @@
           musicOn: false,
           gpu: 0.5, // GPU ember-field amount 0..1 (count = gpu * MAX)
           gpuOK: false,
+          wind: { x: 0, y: 0 }, // a wind you can blow through the embers
         };
 
         /* ---------- Canvas + offscreen accumulation + bloom ---------- */
@@ -1992,7 +2010,7 @@
             layout(location=0) in vec2 aPos;
             layout(location=1) in vec2 aVel;
             layout(location=2) in vec2 aLife;
-            uniform vec2 uRes, uMouse; uniform float uTime,uMotion,uHeat,uDt,uWarp;
+            uniform vec2 uRes, uMouse, uWind; uniform float uTime,uMotion,uHeat,uDt,uWarp;
             out vec2 vPos; out vec2 vVel; out vec2 vLife;
             ${SNOISE}
             vec2 curl(vec2 p){
@@ -2010,6 +2028,7 @@
               vec2 dm = uMouse-pos; float d=length(dm)+1.0;
               if(d<230.0){ vel += (dm/d)*(1.0-d/230.0)*1.6; }       // breath of air
               if(uWarp>0.05){ vec2 c=uRes*0.5; vec2 dc=c-pos; vel += (dc/(length(dc)+1.0))*uWarp*2.2; }
+              vel += uWind * (0.4 + 0.6*life);                      // the wind
               vel *= 0.93;
               pos += vel * uDt;
               life -= 0.006 * uDt;
@@ -2114,6 +2133,7 @@
               "uHeat",
               "uDt",
               "uWarp",
+              "uWind",
             ])
               uU[n] = gl.getUniformLocation(updProg, n);
             for (const n of ["uRes", "uDpr", "uHeat"])
@@ -2183,6 +2203,7 @@
             gl.uniform1f(uU.uHeat, heat);
             gl.uniform1f(uU.uDt, clamp(dt, 0.1, 3));
             gl.uniform1f(uU.uWarp, state.warp);
+            gl.uniform2f(uU.uWind, state.wind.x, state.wind.y);
             gl.enable(gl.RASTERIZER_DISCARD);
             gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, bufs[1 - src]);
             gl.beginTransformFeedback(gl.POINTS);
@@ -2433,8 +2454,9 @@
             // 1) ocean-current flow (curl noise) + audio surge — eased out while the bird forms
             const fc = curl(p.x * flowS, p.y * flowS, flowT);
             const curK = cur * (1 - form * 0.78) * (1 + state.audio * 0.5);
-            p.vx += fc.x * curK;
-            p.vy += fc.y * curK * (1 / (1 + state.audio * 0.5));
+            p.vx += fc.x * curK + state.wind.x * 0.05;
+            p.vy +=
+              fc.y * curK * (1 / (1 + state.audio * 0.5)) + state.wind.y * 0.05;
             // 2) thermal rise — embers ascend, hotter rises faster
             p.vy -=
               (0.18 + heat * 0.5) *
@@ -3354,6 +3376,10 @@
             state.calm ? 0.5 : 1,
             clamp(0.06 * dt, 0, 1),
           );
+          // wind eases back to stillness
+          const wd = Math.pow(0.94, dt);
+          state.wind.x *= wd;
+          state.wind.y *= wd;
 
           // advance the eternal cycle (can run backward; slower when calm)
           state.lifeT += 0.016 * dt * ts * (state.calm ? 0.6 : 1);
@@ -4529,6 +4555,79 @@
         }
         $("#captureBtn").addEventListener("click", captureWallpaper);
 
+        /* ---------- Wind ---------- */
+        let windHinted = false;
+        function gust(dx, dy) {
+          state.wind.x = clamp(state.wind.x + dx * 7, -30, 30);
+          state.wind.y = clamp(state.wind.y + dy * 7, -30, 30);
+          if (!windHinted) {
+            windHinted = true;
+            flashHint("the wind rises — arrow keys to blow the embers");
+          }
+        }
+
+        /* ---------- Shareable permalink: reopen this exact moment ---------- */
+        const SHARE_MAP = {
+          c: "cycle",
+          d: "dayLen",
+          g: "gpu",
+          b: "bloom",
+          n: "density",
+          t: "trail",
+          o: "motionInt",
+        };
+        function buildShareURL() {
+          const p = new URLSearchParams();
+          p.set("e", String(elemIdx));
+          for (const [k, id] of Object.entries(SHARE_MAP)) {
+            const el = $("#" + id);
+            if (el) p.set(k, el.value);
+          }
+          if (state.calm) p.set("k", "1");
+          p.set("L", state.life.toFixed(3));
+          p.set(
+            "Y",
+            ((((state.dayT / state.dayPeriod) % 1) + 1) % 1).toFixed(3),
+          );
+          return location.origin + location.pathname + "#" + p.toString();
+        }
+        async function shareLink() {
+          const url = buildShareURL();
+          try {
+            await navigator.clipboard.writeText(url);
+            flashHint("link copied — it reopens this exact moment ✦");
+          } catch (e) {
+            location.hash = url.split("#")[1] || "";
+            flashHint("link is in the address bar — copy it to share");
+          }
+        }
+        $("#shareBtn").addEventListener("click", shareLink);
+        addEventListener("hashchange", () => applyHash());
+        function applyHash() {
+          if (!location.hash || location.hash.length < 2) return;
+          let p;
+          try {
+            p = new URLSearchParams(location.hash.slice(1));
+          } catch (e) {
+            return;
+          }
+          for (const [k, id] of Object.entries(SHARE_MAP)) {
+            if (p.has(k)) {
+              const el = $("#" + id);
+              if (el) {
+                el.value = p.get(k);
+                el.dispatchEvent(new Event("input", { bubbles: true }));
+              }
+            }
+          }
+          if (p.has("e")) setElement(parseInt(p.get("e")) || 0);
+          if (p.get("k") === "1") setCalm(true);
+          if (p.has("L"))
+            state.lifeT = (parseFloat(p.get("L")) || 0) * state.cycle;
+          if (p.has("Y"))
+            state.dayT = (parseFloat(p.get("Y")) || 0) * state.dayPeriod;
+        }
+
         function flashHint(msg) {
           const h = $("#hint");
           h.textContent = msg;
@@ -4612,7 +4711,8 @@
         }
 
         addEventListener("keydown", (e) => {
-          if (e.target.matches("input,select")) return;
+          if (e.target && e.target.matches && e.target.matches("input,select"))
+            return;
           if (
             state.journey &&
             e.key !== "Escape" &&
@@ -4635,7 +4735,19 @@
           else if (e.key === "d" || e.key === "D") toggleFourD();
           else if (e.key === "e" || e.key === "E") setElement(elemIdx + 1);
           else if (e.key === "p" || e.key === "P") captureWallpaper();
-          else if (e.key === "c" || e.key === "C")
+          else if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            gust(-1, 0);
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            gust(1, 0);
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            gust(0, -1);
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            gust(0, 1);
+          } else if (e.key === "c" || e.key === "C")
             document.body.classList.toggle("cinema");
           else if (e.key === "t" || e.key === "T")
             timer.on ? stopTimer() : startTimer();
@@ -4697,6 +4809,7 @@
         } catch (_) {
           setElement(0);
         }
+        applyHash(); // a shared link reopens the exact element, look & moment
         resize();
         requestAnimationFrame(loop);
         setTimeout(() => ($("#hint").style.opacity = 0), 12000);

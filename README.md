@@ -41,7 +41,9 @@ cycle and layers a whole world on top of it.
 - **Time Machine** — rewind, freeze, or fast-forward the phoenix's life; a wormhole opens, the **wheel of time** turns
 - **4D** — step outside time into the _block universe_: the entire life laid out at once along a worldline of ghost-selves
 - **Element** — transform the whole phoenix: **Fire · Ice · Storm · Verdant · Void**, or an ever-shifting **Spectrum**
+- **Wind** — blow the embers around with the **arrow keys**
 - **Capture** — save the current moment as a full-resolution **wallpaper** (PNG)
+- **Share** — copy a link that reopens this _exact_ moment: element, look, and where it is in the cycle
 
 ### Sound & comfort
 
@@ -51,14 +53,15 @@ cycle and layers a whole world on top of it.
 
 ## Keyboard
 
-| Key     | Action  | Key | Action            |
-| ------- | ------- | --- | ----------------- |
-| `Space` | breathe | `L` | let go            |
-| `R`     | rebirth | `J` | journey           |
-| `X`     | shatter | `M` | breath / mic      |
-| `N`     | rain    | `D` | 4D block universe |
-| `E`     | element | `P` | capture wallpaper |
-| `C`     | cinema  | `F` | fullscreen        |
+| Key     | Action     | Key | Action            |
+| ------- | ---------- | --- | ----------------- |
+| `Space` | breathe    | `L` | let go            |
+| `R`     | rebirth    | `J` | journey           |
+| `X`     | shatter    | `M` | breath / mic      |
+| `N`     | rain       | `D` | 4D block universe |
+| `E`     | element    | `P` | capture wallpaper |
+| `←↑↓→`  | wind       | `C` | cinema            |
+| `F`     | fullscreen |     |                   |
 
 Open the **Settings** panel (gear / `S`) to tune the fire, the rebirth cycle, the
 day–night length, and the ambient mix. Your settings are remembered on your device.
