@@ -4,7 +4,11 @@ A living, single-file phoenix you can breathe with, stir, and travel through tim
 No build step, no dependencies, no network — **one ~140 KB `index.html`** that runs
 entirely in your browser, offline.
 
-**▶ Live: https://epixsmedia.github.io/phoenix/**
+### [▶ Open it live →](https://epixsmedia.github.io/phoenix/)
+
+[![Phoenix — interactive demo](assets/demo.gif)](https://epixsmedia.github.io/phoenix/)
+
+<sub>↑ fan the flames into a blaze, step into the **4D block universe** (its whole life at once), then shatter it — all running live in the browser.</sub>
 
 ---
 
