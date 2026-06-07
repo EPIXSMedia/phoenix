@@ -21,6 +21,7 @@ cycle and layers a whole world on top of it.
 ### The world
 
 - **Volumetric fire** — a GPU shader of domain-warped fractal noise, flowing like rising heat
+- **A GPU ember field** — up to ~70,000 sparks simulated entirely on the GPU (WebGL2 transform feedback), flowing through the curl-noise currents and drawn to your cursor
 - **An ember phoenix** that gathers from the currents into a flapping, winged silhouette at the blaze, then bursts apart and reassembles
 - **A reflection-twin** on moonlit water, meeting the bird at the glowing waterline
 - **A companion phoenix** that rises from a bonfire and orbits the first, flaring in **union** when they pass

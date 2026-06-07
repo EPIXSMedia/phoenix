@@ -87,6 +87,7 @@
       }
 
       #gl,
+      #gpufx,
       #scene,
       #particles {
         position: fixed;
@@ -97,6 +98,13 @@
       }
       #gl {
         z-index: 0;
+      }
+      /* GPU ember field: same stacking level as #gl but painted after it (DOM order),
+         additively blended over the fire, beneath the 2D scene overlays */
+      #gpufx {
+        z-index: 0;
+        pointer-events: none;
+        mix-blend-mode: screen;
       }
       #scene {
         z-index: 1;
@@ -969,6 +977,7 @@
   </head>
   <body>
     <canvas id="gl"></canvas>
+    <canvas id="gpufx"></canvas>
     <canvas id="scene"></canvas>
     <canvas id="particles"></canvas>
     <div class="grain"></div>
@@ -1263,6 +1272,10 @@
       <div class="row">
         <label>Glow / bloom</label
         ><input type="range" id="bloom" min="0" max="100" value="72" />
+      </div>
+      <div class="row">
+        <label>GPU embers</label
+        ><input type="range" id="gpu" min="0" max="100" value="50" />
       </div>
       <div class="row">
         <label>Rebirth cycle</label>
@@ -1618,6 +1631,8 @@
           calm: false, // reduced-motion / gentle mode
           cm: 1, // calm multiplier applied to motion-heavy effects
           musicOn: false,
+          gpu: 0.5, // GPU ember-field amount 0..1 (count = gpu * MAX)
+          gpuOK: false,
         };
 
         /* ---------- Canvas + offscreen accumulation + bloom ---------- */
@@ -1896,6 +1911,270 @@
           };
         })();
 
+        /* ============================================================
+           GPUFX — a GPU ember field: tens of thousands of particles
+           simulated on the GPU via WebGL2 transform feedback.
+           Falls back to nothing (graceful) if WebGL2 is unavailable.
+        ============================================================ */
+        const GPUFX = (() => {
+          const cv = $("#gpufx");
+          let gl,
+            updProg,
+            renProg,
+            bufs,
+            vao,
+            src = 0,
+            seeded = false,
+            ok = false,
+            gDPR = 1;
+          const MAX = 70000,
+            STRIDE = 6; // [posx,posy,velx,vely,life,seed]
+          const uU = {},
+            uR = {};
+
+          const SNOISE = `
+            vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
+            vec2 mod289(vec2 x){return x-floor(x*(1./289.))*289.;}
+            vec3 permute(vec3 x){return mod289(((x*34.)+1.)*x);}
+            float snoise(vec2 v){
+              const vec4 C=vec4(.211324865405187,.366025403784439,-.577350269189626,.024390243902439);
+              vec2 i=floor(v+dot(v,C.yy));vec2 x0=v-i+dot(i,C.xx);
+              vec2 i1=(x0.x>x0.y)?vec2(1.,0.):vec2(0.,1.);
+              vec4 x12=x0.xyxy+C.xxzz;x12.xy-=i1;i=mod289(i);
+              vec3 p=permute(permute(i.y+vec3(0.,i1.y,1.))+i.x+vec3(0.,i1.x,1.));
+              vec3 m=max(.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.);m=m*m;m=m*m;
+              vec3 x=2.*fract(p*C.www)-1.;vec3 h=abs(x)-.5;vec3 ox=floor(x+.5);vec3 a0=x-ox;
+              m*=1.79284291400159-.85373472095314*(a0*a0+h*h);
+              vec3 g;g.x=a0.x*x0.x+h.x*x0.y;g.yz=a0.yz*x12.xz+h.yz*x12.yw;return 130.*dot(m,g);
+            }`;
+
+          const UPD_VS = `#version 300 es
+            precision highp float;
+            layout(location=0) in vec2 aPos;
+            layout(location=1) in vec2 aVel;
+            layout(location=2) in vec2 aLife;
+            uniform vec2 uRes, uMouse; uniform float uTime,uMotion,uHeat,uDt,uWarp;
+            out vec2 vPos; out vec2 vVel; out vec2 vLife;
+            ${SNOISE}
+            vec2 curl(vec2 p){
+              float e=0.1;
+              float n1=snoise(p+vec2(0.,e)), n2=snoise(p-vec2(0.,e));
+              float n3=snoise(p+vec2(e,0.)), n4=snoise(p-vec2(e,0.));
+              return vec2(n1-n2, -(n3-n4))/(2.*e);
+            }
+            float hash(float s){ return fract(sin(s*12.9898+uTime)*43758.5453); }
+            void main(){
+              vec2 pos=aPos, vel=aVel; float life=aLife.x, seed=aLife.y;
+              vec2 fp = pos*0.0028 + vec2(0.0, -uTime*0.05*uMotion);
+              vel += curl(fp) * (0.5+uHeat*0.9) * uMotion * 1.6;
+              vel.y -= (0.2 + uHeat*0.7) * uMotion;                 // thermal rise
+              vec2 dm = uMouse-pos; float d=length(dm)+1.0;
+              if(d<230.0){ vel += (dm/d)*(1.0-d/230.0)*1.6; }       // breath of air
+              if(uWarp>0.05){ vec2 c=uRes*0.5; vec2 dc=c-pos; vel += (dc/(length(dc)+1.0))*uWarp*2.2; }
+              vel *= 0.93;
+              pos += vel * uDt;
+              life -= 0.006 * uDt;
+              if(life<=0.0 || pos.y<-14.0 || pos.x<-40.0 || pos.x>uRes.x+40.0){
+                pos = vec2(hash(seed)*uRes.x, uRes.y*(0.78+0.26*hash(seed+1.3)));
+                vel = vec2(0.0); life = 0.55+0.45*hash(seed+2.7);
+              }
+              vPos=pos; vVel=vel; vLife=vec2(life,seed);
+              gl_Position=vec4(0.0,0.0,0.0,1.0);
+            }`;
+          const UPD_FS = `#version 300 es
+            precision highp float; out vec4 o; void main(){ o=vec4(0.0); }`;
+
+          const REN_VS = `#version 300 es
+            precision highp float;
+            layout(location=0) in vec2 aPos;
+            layout(location=1) in vec2 aVel;
+            layout(location=2) in vec2 aLife;
+            uniform vec2 uRes; uniform float uDpr,uHeat;
+            out float vSpeed; out float vLifeF;
+            void main(){
+              vec2 clip = (aPos/uRes)*2.0-1.0; clip.y=-clip.y;
+              gl_Position=vec4(clip,0.0,1.0);
+              vSpeed=length(aVel); vLifeF=aLife.x;
+              gl_PointSize = (1.3 + vSpeed*0.5) * uDpr * (0.6+uHeat*0.7);
+            }`;
+          const REN_FS = `#version 300 es
+            precision highp float;
+            in float vSpeed; in float vLifeF; out vec4 o;
+            void main(){
+              vec2 pc = gl_PointCoord-0.5; float r=length(pc);
+              if(r>0.5) discard;
+              float a=(1.0-r*2.0); a*=a;
+              float h=clamp(0.22+vSpeed*0.045,0.0,1.0);
+              vec3 col=mix(vec3(0.72,0.12,0.04), vec3(1.0,0.5,0.1), smoothstep(0.0,0.5,h));
+              col=mix(col, vec3(1.0,0.93,0.72), smoothstep(0.5,1.0,h));
+              o=vec4(col, a*clamp(vLifeF,0.0,1.0)*0.5);
+            }`;
+
+          function sh(t, s) {
+            const o = gl.createShader(t);
+            gl.shaderSource(o, s.trim());
+            gl.compileShader(o);
+            if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) {
+              console.warn("GPUFX shader:", gl.getShaderInfoLog(o));
+              return null;
+            }
+            return o;
+          }
+          function prog(vs, fs, tfVaryings) {
+            const v = sh(gl.VERTEX_SHADER, vs),
+              f = sh(gl.FRAGMENT_SHADER, fs);
+            if (!v || !f) return null;
+            const p = gl.createProgram();
+            gl.attachShader(p, v);
+            gl.attachShader(p, f);
+            if (tfVaryings)
+              gl.transformFeedbackVaryings(
+                p,
+                tfVaryings,
+                gl.INTERLEAVED_ATTRIBS,
+              );
+            gl.linkProgram(p);
+            if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+              console.warn("GPUFX link:", gl.getProgramInfoLog(p));
+              return null;
+            }
+            return p;
+          }
+          // point the (already-bound) VAO's attributes at the buffer currently
+          // bound to ARRAY_BUFFER — so the write target is never referenced by it
+          function setAttribs() {
+            const fs = 4,
+              str = STRIDE * fs;
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(0, 2, gl.FLOAT, false, str, 0);
+            gl.enableVertexAttribArray(1);
+            gl.vertexAttribPointer(1, 2, gl.FLOAT, false, str, 2 * fs);
+            gl.enableVertexAttribArray(2);
+            gl.vertexAttribPointer(2, 2, gl.FLOAT, false, str, 4 * fs);
+          }
+          function init() {
+            try {
+              gl = cv.getContext("webgl2", {
+                alpha: true,
+                premultipliedAlpha: false,
+                antialias: false,
+              });
+            } catch (e) {
+              gl = null;
+            }
+            if (!gl) return false;
+            updProg = prog(UPD_VS, UPD_FS, ["vPos", "vVel", "vLife"]);
+            renProg = prog(REN_VS, REN_FS, null);
+            if (!updProg || !renProg) return false;
+            for (const n of [
+              "uRes",
+              "uMouse",
+              "uTime",
+              "uMotion",
+              "uHeat",
+              "uDt",
+              "uWarp",
+            ])
+              uU[n] = gl.getUniformLocation(updProg, n);
+            for (const n of ["uRes", "uDpr", "uHeat"])
+              uR[n] = gl.getUniformLocation(renProg, n);
+            const a = gl.createBuffer(),
+              b = gl.createBuffer();
+            const bytes = MAX * STRIDE * 4;
+            gl.bindBuffer(gl.ARRAY_BUFFER, a);
+            gl.bufferData(gl.ARRAY_BUFFER, bytes, gl.DYNAMIC_COPY);
+            gl.bindBuffer(gl.ARRAY_BUFFER, b);
+            gl.bufferData(gl.ARRAY_BUFFER, bytes, gl.DYNAMIC_COPY);
+            bufs = [a, b];
+            vao = gl.createVertexArray();
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            ok = true;
+            return true;
+          }
+          function seed() {
+            if (!ok) return;
+            const arr = new Float32Array(MAX * STRIDE);
+            for (let i = 0; i < MAX; i++) {
+              const o = i * STRIDE;
+              arr[o] = rand(0, W);
+              arr[o + 1] = rand(0, H);
+              arr[o + 2] = 0;
+              arr[o + 3] = 0;
+              arr[o + 4] = rand(0.2, 1);
+              arr[o + 5] = rand(0, 1000);
+            }
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufs[0]);
+            gl.bufferSubData(gl.ARRAY_BUFFER, 0, arr);
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            src = 0;
+            seeded = true;
+          }
+          function resizeGPU() {
+            if (!ok) return;
+            gDPR = Math.min(DPR, 1.25);
+            cv.width = Math.max(2, (W * gDPR) | 0);
+            cv.height = Math.max(2, (H * gDPR) | 0);
+            cv.style.width = W + "px";
+            cv.style.height = H + "px";
+            gl.viewport(0, 0, cv.width, cv.height);
+            if (!seeded) seed();
+          }
+          function frame(dt) {
+            if (!ok) return;
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            const count = Math.floor(MAX * clamp(state.gpu, 0, 1));
+            if (count < 1) return;
+            const heat = clamp(
+              (state.heat + state.clickHeat) * (1 - state.rain * 0.6),
+              0,
+              1.3,
+            );
+            gl.bindVertexArray(vao);
+            // ---- update pass (transform feedback) — read bufs[src], write bufs[1-src] ----
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufs[src]);
+            setAttribs(); // VAO attributes now reference the READ buffer only
+            gl.bindBuffer(gl.ARRAY_BUFFER, null); // keep the write target single-bound
+            gl.useProgram(updProg);
+            gl.uniform2f(uU.uRes, W, H);
+            gl.uniform2f(uU.uMouse, state.mouse.x, state.mouse.y);
+            gl.uniform1f(uU.uTime, state.t);
+            gl.uniform1f(uU.uMotion, state.motion * state.cm);
+            gl.uniform1f(uU.uHeat, heat);
+            gl.uniform1f(uU.uDt, clamp(dt, 0.1, 3));
+            gl.uniform1f(uU.uWarp, state.warp);
+            gl.enable(gl.RASTERIZER_DISCARD);
+            gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, bufs[1 - src]);
+            gl.beginTransformFeedback(gl.POINTS);
+            gl.drawArrays(gl.POINTS, 0, count);
+            gl.endTransformFeedback();
+            gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+            gl.disable(gl.RASTERIZER_DISCARD);
+            src = 1 - src;
+            // ---- render pass (additive points) — from the freshly written buffer ----
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufs[src]);
+            setAttribs();
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.useProgram(renProg);
+            gl.uniform2f(uR.uRes, W, H);
+            gl.uniform1f(uR.uDpr, gDPR);
+            gl.uniform1f(uR.uHeat, heat);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+            gl.drawArrays(gl.POINTS, 0, count);
+            gl.disable(gl.BLEND);
+            gl.bindVertexArray(null);
+          }
+          return {
+            init,
+            resizeGPU,
+            frame,
+            get ok() {
+              return ok;
+            },
+          };
+        })();
+
         function resize() {
           DPR = Math.min(devicePixelRatio || 1, 2);
           W = innerWidth;
@@ -1914,6 +2193,7 @@
           bloomCv.width = Math.max(2, (W * 0.5) | 0);
           bloomCv.height = Math.max(2, (H * 0.5) | 0);
           GL.resizeGL();
+          GPUFX.resizeGPU();
           initParticles();
         }
         addEventListener("resize", resize);
@@ -3123,6 +3403,7 @@
           }
 
           if (state.glOK) GL.render();
+          if (state.gpuOK) GPUFX.frame(dt); // GPU ember field over the fire
           sctx.clearRect(0, 0, W, H); // 2D scene layer unused (shader paints base) — kept transparent
           drawEmbers(dt);
           updateBreath(now);
@@ -4176,6 +4457,10 @@
           "input",
           (e) => (state.bloom = e.target.value / 100),
         );
+        $("#gpu").addEventListener(
+          "input",
+          (e) => (state.gpu = e.target.value / 100),
+        );
         $("#cycle").addEventListener("input", (e) => {
           state.cycle = +e.target.value;
           $("#cycleVal").textContent = e.target.value;
@@ -4242,6 +4527,7 @@
           "density",
           "trail",
           "bloom",
+          "gpu",
           "cycle",
           "dayLen",
         ];
@@ -4270,6 +4556,7 @@
 
         /* ---------- Boot ---------- */
         state.glOK = GL.init();
+        state.gpuOK = GPUFX.init();
         loadSettings();
         resize();
         requestAnimationFrame(loop);
